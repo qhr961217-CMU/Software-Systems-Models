@@ -48,6 +48,7 @@ sig Wall {
 	all pub : wallHasPub | contentOwner[pub] in (userWall.this +userWall.this.friends)
 }
 
+// Definitions of Privacy Levels
 abstract sig PrivacyLevel {}
 one sig OnlyMe extends PrivacyLevel {}
 one sig Friends extends PrivacyLevel {}

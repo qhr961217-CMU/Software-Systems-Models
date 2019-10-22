@@ -30,16 +30,14 @@ fun contentViewer(c : Content) : set User {
 			getGroup[userWall.wall, userWall.wall.friendContentViewWPL]
 }
 
-
 // Returns the set of all content that can be viewed by the given user.
 fun viewable[u : User] : set Content {
 	{c : Content | u in contentViewer[c]}
 }
 
-
 // Privacy related constraints
 pred privacyConstraints {
-	// All published content must have a PL
+	// All published content must have WPL
 	all c : Content | isContentOnWall[c] implies (some c.contentViewWPL)
 
 	// If a content is not published on wall, it doesn't have contentViewWPL
@@ -83,8 +81,8 @@ assert NoPrivacyVialation {
 	// TODO: How to check whether a user has access to a content she/he can view but not comment
 }
 
-//run {
-//	invariant[]
-//}
+run {
+	invariant[]
+}
 
 check NoPrivacyVialation
