@@ -12,10 +12,6 @@ sig User {
 	userContentCommentPL : one PrivacyLevel,
 	friendContentViewWPL : one PrivacyLevel
 }
-//{
-//	// Wrong way but work
-//	invariant[]
-//}
 
 abstract sig Content {
 	contentBelongUser : one User,
@@ -87,10 +83,10 @@ fun wallOfContent[c : Content] : one Wall {
 				pub in w.wallHasPub and pub in c.^commentBelongContent}
 }
 
-
-
 // Basic constraints
 pred basicConstraints {
+	// Each user owns one or more pieces of content
+	all u : User | some c : Content | contentOwner[c] = u
 	// Sysmetry friendship: all friends of mine should also treat me as friends
 	all u : User | all f : u.friends | f -> u in friends
 	// No self-friendship
