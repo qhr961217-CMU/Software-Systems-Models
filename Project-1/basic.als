@@ -6,17 +6,23 @@
  */
 module basic
 
+sig Nicebook {
+	users : set User
+}
+
 sig User {
 	friends : set User,
 	userWall : one Wall,
 	userContentCommentPL : one PrivacyLevel,
 	friendContentViewWPL : one PrivacyLevel
+} {
+	some users.this
 }
 
 abstract sig Content {
 	contentBelongUser : one User,
-	// A content only has PL iff it has been published
-	contentViewWPL : lone PrivacyLevel
+	// Controls who can view the content on the owner's wall
+	contentViewWPL : one PrivacyLevel
 }
 
 abstract sig Publishable extends Content {
@@ -27,7 +33,10 @@ sig Note extends Publishable {
 	noteHasPhoto : set Photo
 }
 
-sig Photo extends Publishable {}
+sig Photo extends Publishable {} {
+	// A photo is contained by at most one note
+	lone noteHasPhoto.this
+}
 
 sig Comment extends Content {
 	commentBelongContent : one Content
@@ -44,6 +53,8 @@ sig Tag {
 sig Wall {
 	wallHasPub : set Publishable
 } {
+	// Every wall must belong to exactly one user
+	one userWall.this
 	// Publishable on walls must belong to its owner or the owner's firends
 	all pub : wallHasPub | contentOwner[pub] in (userWall.this +userWall.this.friends)
 }
@@ -67,11 +78,11 @@ fun tagOwner[t : Tag] : one User {
 
 // Return true if the content is published on some wall
 pred isContentOnWall[c : Content] {
-	c in Publishable implies (some wallHasPub.c)
-	// Comment is on wall iff its attatched content is on wall (recursively)
-	c in Comment implies
-		some pub : Publishable | some w : Wall |
-			pub in w.wallHasPub and pub in c.^commentBelongContent
+       c in Publishable implies (some wallHasPub.c)
+       // Comment is on wall iff its attatched content is on wall (recursively)
+       c in Comment implies
+               some pub : Publishable | some w : Wall |
+                       pub in w.wallHasPub and pub in c.^commentBelongContent
 }
 
 // Get the wall of the content if there is any
@@ -84,27 +95,27 @@ fun wallOfContent[c : Content] : one Wall {
 				pub in w.wallHasPub and pub in c.^commentBelongContent}
 }
 
-// Basic constraints
-pred basicConstraints {
-	// Each user owns one or more pieces of content
-	all u : User | some c : Content | contentOwner[c] = u
-	// Sysmetry friendship: all friends of mine should also treat me as friends
-	all u : User | all f : u.friends | f -> u in friends
-	// No self-friendship
-	all u : User | u not in u.friends
-	// A user can only tagged by his/own friends
-	all u : User | all t : Tag | t.tagRefUser = u implies tagOwner[t] in u.friends
-	// No cycle in comments chain
-	all com : Comment | com not in com.^(commentBelongContent)
+fun contentsOfNicebook[n : Nicebook] : set Content {
+	contentBelongUser.(n.users)
 }
 
-// Wall related constraints
-pred wallConstraints {
-	// A wall only belongs to one user
-	all w : Wall | one userWall.w
+fun commentsOfNicebook[n : Nicebook] : set Comment {
+	commentBelongContent.(contentsOfNicebook[n])
+}
 
-	// All published content should only be published on exactly one wall
-	all pub : Publishable | isContentOnWall[pub] implies one wallHasPub.pub
+// Basic constraints
+pred basicConstraints[n : Nicebook] {
+	// Each user owns one or more pieces of content
+	all u : n.users | some c : Content | contentOwner[c] = u
+	// Sysmetry friendship: all friends of mine should also treat me as friends
+	all u : n.users | all f : u.friends | f -> u in friends
+	// No self-friendship
+	all u : n.users | u not in u.friends
+	// A user can only tagged by his/own friends
+	all u : n.users | all t : Tag | t.tagRefUser = u implies tagOwner[t] in u.friends
+	
+	// No cycle in comments chain
+	all com : commentsOfNicebook[n] | com not in com.^(commentBelongContent)
 }
 
 
