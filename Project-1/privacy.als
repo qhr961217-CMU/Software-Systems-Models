@@ -86,4 +86,4 @@ assert NoPrivacyVialation {
 
 run {
 	all n : Nicebook | invariant[n]
-} for 5 but exactly 0 Content, exactly 1 User
+} for 5

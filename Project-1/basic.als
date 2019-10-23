@@ -16,7 +16,10 @@ sig User {
 	userContentCommentPL : one PrivacyLevel,
 	friendContentViewWPL : one PrivacyLevel
 } {
+	// All users should be in some nicebook
 	some users.this
+	// Friends should be in the same nicebook
+	all n : Nicebook | this in n.users implies friends in n.users
 }
 
 abstract sig Content {
