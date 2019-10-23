@@ -35,24 +35,31 @@ fun viewable[u : User] : set Content {
 	{c : Content | u in contentViewer[c]}
 }
 
-// Privacy related constraints
-pred privacyConstraints {
-	// All published content must have WPL
-	all c : Content | isContentOnWall[c] implies (some c.contentViewWPL)
+// Returns whether p1's privacy level is lower than p2
+pred isPLLowerOrEquals[p1 : PrivacyLevel, p2 : PrivacyLevel] {
+	p1 = Everyone
+		=> p2 in PrivacyLevel
+	else p1 = FriendsOfFriends
+		=> p2 in (PrivacyLevel - Everyone)
+	else p1 = Friends
+		=> p2 in (OnlyMe + Friends)
+	else p1 = OnlyMe
+		=> p2 = OnlyMe
+}
 
-	// If a content is not published on wall, it doesn't have contentViewWPL
-	// We assume "if a content doesn't have contentViewWPL, it means it's only viewable to its owner"
-	// In other words, content must be published before it can be viewed by other users
-	all c : Content | !isContentOnWall[c] implies (no c.contentViewWPL)
+// Privacy related constraints
+pred privacyConstraints[n : Nicebook] {
+	// The child comments privacy level should be lower or equal to the parent node privacy level.
+	all c : commentsOfNicebook[n] | isPLLowerOrEquals[c.contentViewWPL, c.commentBelongContent.contentViewWPL]
 
 	// Content must be published before it can be viewed by other users. (except user him/herself)
-	all c : Content | !isContentOnWall[c] implies (contentViewer[c] = contentOwner[c])
+	all c : contentsOfNicebook[n] | !isContentOnWall[c] implies (contentViewer[c] = contentOwner[c])
 
 	// A user may only comment contents that are viewable to him/her
 	// Since the privacy setting is static:
  	// Every comment should be made by the user that can view the content that the comment is attatched to.
-	// And it should comply with the comment
-	all com : Comment |
+	// And it should comply with the comment's privacy level
+	all com : commentsOfNicebook[n] |
 		let comOwner = contentOwner[com],
 			 attached = com.commentBelongContent,
 			 attachedOwner = contentOwner[attached] | 
@@ -68,21 +75,15 @@ pred assumptions {
 	// Privacy setting is static
 }
 
-pred invariant[] {
-	basicConstraints
-	wallConstraints
-	privacyConstraints
+pred invariant[n : Nicebook] {
+	basicConstraints[n]
+	privacyConstraints[n]
 }
 
 assert NoPrivacyVialation {
-	all u : User |
-		all com : contentBelongUser.u & Comment | com.commentBelongContent in viewable[u]
-
-	// TODO: How to check whether a user has access to a content she/he can view but not comment
+	// Every operation preserves the invariant
 }
 
 run {
-	invariant[]
-}
-
-check NoPrivacyVialation
+	all n : Nicebook | invariant[n]
+} for 5 but exactly 0 Content, exactly 1 User
