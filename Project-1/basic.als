@@ -118,37 +118,3 @@ pred basicConstraints[n : Nicebook] {
 	all com : commentsOfNicebook[n] | com not in com.^(commentBelongContent)
 }
 
-// local operation for addTag
-pred addTagToPublishable[p, p' : Publishable, t : Tag]{
-	// user of the tag u = t.tagRefUser
-	// p'.pubTag = p.pubTag + t 
-	// u.userWall.wallHasPub contains pubTag.t
-	
-	// postcondition
-	some u : t.tagRefUser | 
-	p'.pubTag = p.pubTag + t and pubTag.t in u.userWall.wallHasPub
-
-	// frame condition
-	all t : p.pubTag | 
-	t in p'.pubTag
-}
-
-// local operation for removeTag
-pred removeTagFromPublishable[p, p' : Publishable, t : Tag]{
-	// precondition
-	t in p.pubTag
-		
-	// postcondition
-	t not in p'.pubTag
-	
-	// frame condition
-	all tag : p.pubTag - t | 
-	tag in p'.pubTag
-}
-
-pred addTag{
-}
-
-pred removeTag{
-}
-
