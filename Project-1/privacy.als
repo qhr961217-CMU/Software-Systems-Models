@@ -4,35 +4,35 @@
 open basic
 
 // Get the group that pl suggests with respect to the given user
-fun getGroup[u : User, pl : PrivacyLevel] : set User {
+fun getGroup[n : Nicebook, u : User, pl : PrivacyLevel] : set User {
 	pl = OnlyMe
 		=> u
 	else pl = Friends
-		=> u + u.friends
+		=> u + n.friendships[u]
 	else pl = FriendsOfFriends
-		=> u + u.friends + u.friends.friends
+		=> u + n.friendships[u] + n.friendships[n.friendships[u]]
 	else
 		User
 }
 
 // Get the set of all the viewers that can view the given content
-fun contentViewer(c : Content) : set User {
-	let owner = contentOwner[c], wall = wallOfContent[c] |
+fun contentViewer(n : Nicebook, c : Content) : set User {
+	let owner = contentOwner[c], wall = wallOfContent[n, c] |
 		// If the content is not published, it's only viewable to its owner
 		no wall
 			=> owner
 		// The content is on the wall of its owner, where "contentViewWPL" controls visibility
 		else	owner = userWall.wall
-			=> getGroup[owner, c.contentViewWPL]
+			=> getGroup[n, owner, c.contentViewWPL]
 		// The content is on the wall of other users other than its owner,
 		// where "friendContentViewWPL" setting of the wall owner controls visibility
 		else
-			getGroup[userWall.wall, userWall.wall.friendContentViewWPL]
+			getGroup[n, userWall.wall, userWall.wall.friendContentViewWPL]
 }
 
 // Returns the set of all content that can be viewed by the given user.
-fun viewable[u : User] : set Content {
-	{c : Content | u in contentViewer[c]}
+fun viewable[n: Nicebook, u : User] : set Content {
+	{c : n.contents | u in contentViewer[n, c]}
 }
 
 // Returns whether p1's privacy level is lower than p2
@@ -53,7 +53,7 @@ pred privacyConstraints[n : Nicebook] {
 	all c : commentsOfNicebook[n] | isPLLowerOrEquals[c.contentViewWPL, c.commentBelongContent.contentViewWPL]
 
 	// Content must be published before it can be viewed by other users. (except user him/herself)
-	all c : contentsOfNicebook[n] | !isContentOnWall[c] implies (contentViewer[c] = contentOwner[c])
+	all c : n.contents | !isContentOnWall[n, c] implies (contentViewer[n, c] = contentOwner[c])
 
 	// A user may only comment contents that are viewable to him/her
 	// Since the privacy setting is static:
@@ -63,8 +63,8 @@ pred privacyConstraints[n : Nicebook] {
 		let comOwner = contentOwner[com],
 			 attached = com.commentBelongContent,
 			 attachedOwner = contentOwner[attached] | 
-			comOwner in contentViewer[attached] and
-			comOwner in getGroup[attachedOwner, attachedOwner.userContentCommentPL]
+			comOwner in contentViewer[n, attached] and
+			comOwner in getGroup[n, attachedOwner, attachedOwner.userContentCommentPL]
 }
 
 // Assumptions we made to resolve the ambiguities

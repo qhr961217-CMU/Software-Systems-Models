@@ -7,25 +7,32 @@
 module basic
 
 sig Nicebook {
-	users : set User
+	users : set User,
+	friendships : User -> User,
+	contents: set Content
+} {
+	// All users in friendship should be in users
+	all u : friendships.User | u in users
+	all u : User.friendships | u in users
+	// All owners of the contents should be in users
+	all c : contents | contentOwner[c] in users
 }
 
 sig User {
-	friends : set User,
 	userWall : one Wall,
 	userContentCommentPL : one PrivacyLevel,
 	friendContentViewWPL : one PrivacyLevel
 } {
-	// All users should be in some nicebook
+	// All users should be in some nicebooks
 	some users.this
-	// Friends should be in the same nicebook
-	all n : Nicebook | this in n.users implies friends in n.users
 }
 
 abstract sig Content {
 	contentBelongUser : one User,
 	// Controls who can view the content on the owner's wall
 	contentViewWPL : one PrivacyLevel
+} {
+	some n : Nicebook | contentBelongUser in n.users and this in n.contents
 }
 
 abstract sig Publishable extends Content {
@@ -58,8 +65,6 @@ sig Wall {
 } {
 	// Every wall must belong to exactly one user
 	one userWall.this
-	// Publishable on walls must belong to its owner or the owner's firends
-	all pub : wallHasPub | contentOwner[pub] in (userWall.this +userWall.this.friends)
 }
 
 // Definitions of Privacy Levels
@@ -79,31 +84,34 @@ fun tagOwner[t : Tag] : one User {
 	pubTag.t.contentBelongUser
 }
 
+fun commentsOfNicebook[n : Nicebook] : set Comment {
+	commentBelongContent.(n.contents)
+}
+
+fun wallsOfNicebook[n : Nicebook] : set Wall {
+	n.users.userWall
+}
+
 // Return true if the content is published on some wall
-pred isContentOnWall[c : Content] {
-       c in Publishable implies (some wallHasPub.c)
+pred isContentOnWall[n : Nicebook, c : Content] {
+       (c in Publishable) implies (c in n.contents and c in wallsOfNicebook[n].wallHasPub)
        // Comment is on wall iff its attatched content is on wall (recursively)
-       c in Comment implies
-               some pub : Publishable | some w : Wall |
+       (c in Comment) implies c in n.contents and
+               some pub : n.contents & Publishable | some w : wallsOfNicebook[n] |
                        pub in w.wallHasPub and pub in c.^commentBelongContent
 }
 
 // Get the wall of the content if there is any
-fun wallOfContent[c : Content] : one Wall {
-	(c in Publishable) =>
-		wallHasPub.c
+fun wallOfContent[n : Nicebook, c : Content] : one Wall {
+	c not in n.contents =>
+		none
+	else c in Publishable =>
+		wallsOfNicebook[n] & wallHasPub.c
 	else
-		{w : Wall |
+		// It's a comment
+		{w : wallsOfNicebook[n] |
 			some pub : Publishable |
 				pub in w.wallHasPub and pub in c.^commentBelongContent}
-}
-
-fun contentsOfNicebook[n : Nicebook] : set Content {
-	contentBelongUser.(n.users)
-}
-
-fun commentsOfNicebook[n : Nicebook] : set Comment {
-	commentBelongContent.(contentsOfNicebook[n])
 }
 
 // Basic constraints
@@ -111,13 +119,23 @@ pred basicConstraints[n : Nicebook] {
 	// Each user owns one or more pieces of content
 	all u : n.users | some c : Content | contentOwner[c] = u
 	// Sysmetry friendship: all friends of mine should also treat me as friends
-	all u : n.users | all f : u.friends | f -> u in friends
+	all u1, u2 : n.users | u1 -> u2 in n.friendships implies u2 -> u1 in n.friendships
 	// No self-friendship
-	all u : n.users | u not in u.friends
+	all u : n.users | u -> u not in n.friendships
 	// A user can only tagged by his/own friends
-	all u : n.users | all t : Tag | t.tagRefUser = u implies tagOwner[t] in u.friends
+	all u : n.users | all t : Tag | t.tagRefUser = u implies (tagOwner[t] -> u in n.friendships)
 	
 	// No cycle in comments chain
 	all com : commentsOfNicebook[n] | com not in com.^(commentBelongContent)
+
+	// Publishable on walls must belong to its owner or the owner's firends
+	all pub : n.users.userWall.wallHasPub |
+		let wallOwner = userWall.(wallOfContent[n, pub]) |
+		isContentOnWall[n, pub] implies
+			contentOwner[pub] in (wallOwner + n.friendships[wallOwner])
 }
+
+run {
+	all n : Nicebook | basicConstraints[n]
+} for 2 but exactly 2 Nicebook
 
