@@ -73,22 +73,13 @@ pred privacyConstraints[n : Nicebook] {
 			comOwner in getGroup[n, attachedOwner, attachedOwner.userContentCommentPL]
 }
 
-// Assumptions we made to resolve the ambiguities
-pred assumptions {
-	// Sysmetry friendship: all friends of mine should also treat me as friends
-	// If a content is not published on wall, it doesn't have contentViewWPL
-	// All published content should only be published on exactly one wall
-	// Privacy setting is static
-}
-
 pred invariant[n : Nicebook] {
 	basicConstraints[n]
 	privacyConstraints[n]
 }
 
-run {
+generateValidPrivacyInstances : run {
 	all n : Nicebook | invariant[n]
-
 	some Nicebook
 	some User
 	some Publishable

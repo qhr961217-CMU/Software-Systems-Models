@@ -149,7 +149,7 @@ pred basicConstraints[n : Nicebook] {
 			contentOwner[pub] in (wallOwner + n.friendships[wallOwner])
 }
 
-run {
+generateValidBasicInstances : run {
 	all n : Nicebook | basicConstraints[n]
 	some Nicebook
 	some User
