@@ -9,31 +9,27 @@
  */
 open basic
 
-// Get the group that pl suggests with respect to the given user
-fun getGroup[n : Nicebook, u : User, pl : PrivacyLevel] : set User {
-	pl = OnlyMe
-		=> u
-	else pl = Friends
-		=> u + n.friendships[u]
-	else pl = FriendsOfFriends
-		=> u + n.friendships[u] + n.friendships[n.friendships[u]]
-	else
-		User
-}
-
 // Get the set of all the viewers that can view the given content
 fun contentViewer(n : Nicebook, c : Content) : set User {
-	let owner = contentOwner[c], wall = wallOfContent[n, c] |
+	let owner = contentOwner[c], walls = wallOfContent[n, c] |
+		c not in n.contents
+			=> none
 		// If the content is not published, it's only viewable to its owner
-		no wall
+		else no walls
 			=> owner
-		// The content is on the wall of its owner, where "contentViewWPL" controls visibility
-		else	owner = userWall.wall
+		// The content is only on the wall of its owner, where "contentViewWPL" controls visibility
+		else	owner = userWall.walls
 			=> getGroup[n, owner, c.contentViewWPL]
-		// The content is on the wall of other users other than its owner,
+		// The content is only on the wall of other users other than its owner,
 		// where "friendContentViewWPL" setting of the wall owner controls visibility
+		else owner not in userWall.walls
+			=> {u  : n.users | u = owner or some w : walls |
+				u in getGroup[n, userWall.w, userWall.w.friendContentViewWPL]}
 		else
-			getGroup[n, userWall.wall, userWall.wall.friendContentViewWPL]
+		// The content is on the walls of both the owner's and other users'
+			getGroup[n, owner, c.contentViewWPL] +
+				{u  : n.users | u = owner or some w : walls - owner.userWall |
+					u in getGroup[n, userWall.w, userWall.w.friendContentViewWPL]}
 }
 
 // Returns the set of all content that can be viewed by the given user.

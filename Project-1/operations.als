@@ -40,6 +40,9 @@ sig UploadPub extends PublishableOp {
 	// Which user owns the uploaded publishable
 	u : User
 } {
+	// Frame Conditions
+	n'.wallPubs = n.wallPubs
+
 	// Pre Conditions
 	u in n.users
 	pub not in n.contents
@@ -53,6 +56,9 @@ sig UploadPub extends PublishableOp {
 // Remove photo or note
 sig RemovePub extends PublishableOp {
 } {
+	// Frame Conditions
+	n'.wallPubs = n.wallPubs
+
 	// Pre Conditions
 	pub in n.contents
 
@@ -66,15 +72,16 @@ sig PublishPub extends PublishableOp {
 	u : User
 } {
 	// Pre Conditions
-//	!isContentOnWall[n, pub]
 	pub in n.contents
+	!isContentOnWall[n, pub]
 	contentOwner[pub] in (u + n.friendships[u])
 
 	// Frame Conditions
 	n'.contents = n.contents
 
 	// Post condition
-	isContentOnWall[n', pub] and userWall.(wallOfContent[n', pub]) = u
+	n'.wallPubs = n.wallPubs + (u.userWall -> pub)
+	isContentOnWall[n', pub] and u in userWall.(wallOfContent[n', pub])
 }
 
 // Unpublish photo or note
@@ -82,15 +89,17 @@ sig UnpublishPub extends PublishableOp {
 	u : User
 } {
 	// Pre Conditions
-//	isContentOnWall[n, pub]
 	pub in n.contents
-	contentOwner[pub] = u or wallOfContent[n, pub] = u.userWall
+	// Not allowed to unpublish publishable that already has comments
+	no (commentBelongContent.pub & n.contents)
+	u.userWall -> pub in n.wallPubs
 
 	// Frame Conditions
 	n'.contents = n.contents
 
 	// Post Conditions
-	!isContentOnWall[n', pub]
+	n'.wallPubs = n.wallPubs - (u.userWall -> pub)
+	u.userWall not in wallOfContent[n', pub]
 }
 
 // Add Comment to a content
@@ -101,17 +110,18 @@ sig AddComment extends Event {
 	content : Content
 } {
 	// Frame Condition
-	n'.pubTags = n.pubTags	
+	n'.pubTags = n.pubTags		
 
 	// Pre Conditions
-	//com not in n.contents
+	com not in n.contents
 	content in n.contents
-	// Pre - Privacy
-	isContentOnWall[n, content]
+	// Owner of Comment should be able to see the content
+	contentOwner[com] in contentViewer[n, content]
+
 	// Comply with privacy setting of the content owner
-	let cOwner = contentOwner[com] |
-		cOwner in contentViewer[n, content] and
-			cOwner in getGroup[n, cOwner, cOwner.userContentCommentPL]
+	let comOwner = contentOwner[com], contOwner = contentOwner[content] |
+		comOwner in contentViewer[n, content] and
+			comOwner in getGroup[n, contOwner, contOwner.userContentCommentPL]
 
 	// Post Conditions
 	com.commentBelongContent = content
@@ -125,12 +135,12 @@ sig AddTag extends TagOp {
 } {
 	// Pre Conditions
 	pub in n.contents
-	//pub -> tag not in n.pubTags
+	pub -> tag not in n.pubTags
 	contentOwner[pub] in getGroup[n, tag.tagRefUser, Friends]
 
 	// Post Conditions
-	isContentOnWall[n', pub] and userWall.(wallOfContent[n', pub]) = tag.tagRefUser
 	n'.pubTags = n.pubTags + pub -> tag
+	n'.wallPubs = n.wallPubs + tag.tagRefUser.userWall -> pub
 }
 
 // Remove tag from a content
@@ -139,13 +149,16 @@ sig RemoveTag extends TagOp {
 	pub: Publishable
 } {
 	// Pre Conditions
-	//pub -> tag in n.pubTags
+	pub -> tag in n.pubTags
 	pub in n.contents
 	contentOwner[pub] in getGroup[n, tag.tagRefUser, Friends]
 
+	// Frame Conditions
+	n'.wallPubs = n.wallPubs
+	
 	// Post Conditions
-	tag.tagRefUser.userWall not in wallOfContent[n', pub] 
 	n'.pubTags = n.pubTags - pub -> tag
+	tag.tagRefUser.userWall not in wallOfContent[n', pub] 
 }
 
 // Check the invariant preserves via by all of the operations(events)
@@ -154,9 +167,42 @@ assert NoPrivacyViolation {
 		invariant[pre] and e.n = pre and e.n' = post implies invariant[post]
 }
 
-//check NoPrivacyViolation
+check NoPrivacyViolation for 3 but exactly 2 Nicebook
 
-run {
+/*
+ * Run commands for various operations
+ */
+generateUploadPubInstance : run {
+	some pre, post : Nicebook, e : UploadPub |
+		invariant[pre] and e.n = pre and e.n' = post implies invariant[post]
+}
+
+generateRemovePubInstance : run {
+	some pre, post : Nicebook, e : RemovePub |
+		invariant[pre] and e.n = pre and e.n' = post implies invariant[post]
+}
+
+generatePublishPubInstance : run {
+	some pre, post : Nicebook, e : PublishPub |
+		invariant[pre] and e.n = pre and e.n' = post implies invariant[post]
+}
+
+generateUnpublishPubInstance : run {
+	some pre, post : Nicebook, e : UnpublishPub |
+		invariant[pre] and e.n = pre and e.n' = post implies invariant[post]
+}
+
+generateAddCommentInstance : run {
+	some pre, post : Nicebook, e : AddComment |
+		invariant[pre] and e.n = pre and e.n' = post implies invariant[post]
+}
+
+generateAddTagInstance : run {
 	some pre, post : Nicebook, e : AddTag |
+		invariant[pre] and e.n = pre and e.n' = post implies invariant[post]
+}
+
+generateRemoveTagInstance : run {
+	some pre, post : Nicebook, e : RemoveTag |
 		invariant[pre] and e.n = pre and e.n' = post implies invariant[post]
 }
