@@ -132,9 +132,9 @@ sig RemoveTag extends TagOp {
 }
 
 
-assert NoPrivacyVialation {
+assert NoPrivacyViolation {
 	all pre, post : Nicebook, e : Event |
 		invariant[pre] and e.n = pre and e.n' = post implies invariant[post]
 }
 
-check NoPrivacyVialation
+check NoPrivacyViolation
