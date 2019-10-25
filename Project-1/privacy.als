@@ -80,10 +80,6 @@ pred invariant[n : Nicebook] {
 	privacyConstraints[n]
 }
 
-assert NoPrivacyVialation {
-	// Every operation preserves the invariant
-}
-
 run {
 	all n : Nicebook | invariant[n]
 } for 5

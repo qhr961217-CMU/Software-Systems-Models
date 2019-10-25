@@ -131,8 +131,10 @@ sig RemoveTag extends TagOp {
 	n'.pubTags = n.pubTags - pub -> tag
 }
 
-assert AllOpsPreserveInvariant { all pre, post : Nicebook, e : Event |
-	invariant[pre] and e.n = pre and e.n' = post implies invariant[post]
+
+assert NoPrivacyVialation {
+	all pre, post : Nicebook, e : Event |
+		invariant[pre] and e.n = pre and e.n' = post implies invariant[post]
 }
 
-check AllOpsPreserveInvariant
+check NoPrivacyVialation
