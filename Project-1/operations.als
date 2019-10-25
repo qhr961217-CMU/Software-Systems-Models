@@ -1,12 +1,20 @@
 /*
+ * Group 9
+ * Project #1
+ * Oct. 25th, 2019
+ */
+
+/*
  * Nicebook - Operations
  */
 
 open privacy
 
+// Base Event
 abstract sig Event {
 	n, n' : Nicebook
 } {
+	// Users never change, so do friendships
 	n'.users = n.users
 	n'.friendships = n.friendships
 }
@@ -15,6 +23,7 @@ abstract sig Event {
 abstract sig PublishableOp extends Event {
 	pub : Publishable
 } {
+	// The tags should remain the same
 	n'.pubTags = n.pubTags
 }
 
@@ -22,33 +31,38 @@ abstract sig PublishableOp extends Event {
 abstract sig TagOp extends Event {
 	tag : Tag
 } {
+	// The contents should remain the same
 	n'.contents = n.contents
 }
 
-
+// Upload photo or note
 sig UploadPub extends PublishableOp {
+	// Which user owns the uploaded publishable
 	u : User
 } {
-	// Pre
+	// Pre Conditions
 	u in n.users
 	pub not in n.contents
 	
-	// Post
+	// Post Conditions
 	n'.contents = n.contents + pub
 	contentOwner[pub] = u
 	!isContentOnWall[n', pub]
 }
 
+// Remove photo or note
 sig RemovePub extends PublishableOp {
 } {
-	// Pre-condition
+	// Pre Conditions
 	pub in n.contents
 
-	// Post
+	// Post Conditions
 	n'.contents = n.contents - (pub + ^commentBelongContent.pub)
 }
 
+// Publishing photo or note
 sig PublishPub extends PublishableOp {
+	// Which user's wall should this 
 	u : User
 } {
 	// Pre Conditions
@@ -63,6 +77,7 @@ sig PublishPub extends PublishableOp {
 	isContentOnWall[n', pub] and userWall.(wallOfContent[n', pub]) = u
 }
 
+// Unpublish photo or note
 sig UnpublishPub extends PublishableOp {
 	u : User
 } {
@@ -78,6 +93,7 @@ sig UnpublishPub extends PublishableOp {
 	!isContentOnWall[n', pub]
 }
 
+// Add Comment to a content
 sig AddComment extends Event {
 	// Comment to be added
 	com : Comment,
@@ -102,7 +118,7 @@ sig AddComment extends Event {
 	n'.contents = n.contents + com
 }
 
-
+// Add tag to a content
 sig AddTag extends TagOp {
 	// We assume the performer of the operation is the owner of this publishable
 	pub : Publishable
@@ -117,6 +133,7 @@ sig AddTag extends TagOp {
 	n'.pubTags = n.pubTags + pub -> tag
 }
 
+// Remove tag from a content
 sig RemoveTag extends TagOp {
 	// We assume the performer of the operation is the owner of this publishable
 	pub: Publishable
@@ -131,10 +148,11 @@ sig RemoveTag extends TagOp {
 	n'.pubTags = n.pubTags - pub -> tag
 }
 
-
+// Check the invariant preserves via by all of the operations(events)
 assert NoPrivacyVialation {
 	all pre, post : Nicebook, e : Event |
 		invariant[pre] and e.n = pre and e.n' = post implies invariant[post]
 }
 
-check NoPrivacyVialation
+// Check for the scope of 5
+check NoPrivacyVialation for 5

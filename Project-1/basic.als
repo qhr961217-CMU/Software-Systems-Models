@@ -1,4 +1,10 @@
 /*
+ * Group 9
+ * Project #1
+ * Oct. 25th, 2019
+ */
+
+/*
  * Basic Concepts
  * Glossary:
  * 		PL - Privacy Level
@@ -20,6 +26,7 @@ sig Nicebook {
 
 	// All comments must belong to some content in this nicebook
 	all com : (contents & Comment) | com.commentBelongContent in contents
+	// All comments of all contents should be in this nicebook
 	all con : contents | commentBelongContent.con in contents
 
 	// All Publishable in pubTags should be in this Nicebook
@@ -28,7 +35,9 @@ sig Nicebook {
 
 sig User {
 	userWall : one Wall,
+	// Controls who can comment the user's contents
 	userContentCommentPL : one PrivacyLevel,
+	// Controls who can view the others' contents on the user's wall
 	friendContentViewWPL : one PrivacyLevel
 } {
 	// All users should be in some nicebooks
@@ -36,10 +45,12 @@ sig User {
 }
 
 abstract sig Content {
+	// Who owns this content
 	contentBelongUser : one User,
 	// Controls who can view the content on the owner's wall
 	contentViewWPL : one PrivacyLevel
 } {
+	// Every content has to be in some nicebooks
 	some n : Nicebook | contentBelongUser in n.users and this in n.contents
 }
 
@@ -56,6 +67,7 @@ sig Photo extends Publishable {} {
 }
 
 sig Comment extends Content {
+	// What content is this comment attatched to
 	commentBelongContent : one Content
 }
 
@@ -112,7 +124,7 @@ fun wallOfContent[n : Nicebook, c : Content] : set Wall {
 	else c in Publishable =>
 		wallsOfNicebook[n] & wallHasPub.c
 	else
-		// It's a comment
+		// It's a comment, then return the wall that the highest parent of it is on
 		{w : wallsOfNicebook[n] |
 			some pub : Publishable |
 				pub in w.wallHasPub and pub in c.^commentBelongContent}
@@ -139,5 +151,11 @@ pred basicConstraints[n : Nicebook] {
 
 run {
 	all n : Nicebook | basicConstraints[n]
-} for 3 but exactly 2 Comment
+	some Nicebook
+	some User
+	some Publishable
+	some Photo
+	some Comment
+	some Tag
+} for 5
 

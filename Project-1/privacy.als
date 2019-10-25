@@ -1,4 +1,10 @@
 /*
+ * Group 9
+ * Project #1
+ * Oct. 25th, 2019
+ */
+
+/*
  * Nicebook - Privacy Control
  */
 open basic
@@ -31,7 +37,7 @@ fun contentViewer(n : Nicebook, c : Content) : set User {
 }
 
 // Returns the set of all content that can be viewed by the given user.
-fun viewable[n: Nicebook, u : User] : set Content {
+fun viewable[n : Nicebook, u : User] : set Content {
 	{c : n.contents | u in contentViewer[n, c]}
 }
 
@@ -82,4 +88,11 @@ pred invariant[n : Nicebook] {
 
 run {
 	all n : Nicebook | invariant[n]
+
+	some Nicebook
+	some User
+	some Publishable
+	some Photo
+	some Comment
+	some Tag
 } for 5
