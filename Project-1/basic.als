@@ -27,7 +27,7 @@ sig Nicebook {
 	// All comments must belong to some content in this nicebook
 	all com : (contents & Comment) | com.commentBelongContent in contents
 	// All comments of all contents should be in this nicebook
-	all con : contents | commentBelongContent.con in contents
+	//all con : contents | commentBelongContent.con in contents
 
 	// All Publishable in pubTags should be in this Nicebook
 	all pub : pubTags.Tag | pub in contents
@@ -112,9 +112,7 @@ fun wallsOfNicebook[n : Nicebook] : set Wall {
 pred isContentOnWall[n : Nicebook, c : Content] {
        (c in Publishable) implies (c in n.contents and c in wallsOfNicebook[n].wallHasPub)
        // Comment is on wall iff its attatched content is on wall (recursively)
-       (c in Comment) implies c in n.contents and
-               some pub : n.contents & Publishable | some w : wallsOfNicebook[n] |
-                       pub in w.wallHasPub and pub in c.^commentBelongContent
+
 }
 
 // Get the wall of the content if there is any

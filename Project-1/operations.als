@@ -62,11 +62,11 @@ sig RemovePub extends PublishableOp {
 
 // Publishing photo or note
 sig PublishPub extends PublishableOp {
-	// Which user's wall should this 
+	// Which user's wall should this photo be published to
 	u : User
 } {
 	// Pre Conditions
-	!isContentOnWall[n, pub]
+//	!isContentOnWall[n, pub]
 	pub in n.contents
 	contentOwner[pub] in (u + n.friendships[u])
 
@@ -82,7 +82,7 @@ sig UnpublishPub extends PublishableOp {
 	u : User
 } {
 	// Pre Conditions
-	isContentOnWall[n, pub]
+//	isContentOnWall[n, pub]
 	pub in n.contents
 	contentOwner[pub] = u or wallOfContent[n, pub] = u.userWall
 
@@ -104,7 +104,7 @@ sig AddComment extends Event {
 	n'.pubTags = n.pubTags	
 
 	// Pre Conditions
-	com not in n.contents
+	//com not in n.contents
 	content in n.contents
 	// Pre - Privacy
 	isContentOnWall[n, content]
@@ -125,7 +125,7 @@ sig AddTag extends TagOp {
 } {
 	// Pre Conditions
 	pub in n.contents
-	pub -> tag not in n.pubTags
+	//pub -> tag not in n.pubTags
 	contentOwner[pub] in getGroup[n, tag.tagRefUser, Friends]
 
 	// Post Conditions
@@ -139,7 +139,7 @@ sig RemoveTag extends TagOp {
 	pub: Publishable
 } {
 	// Pre Conditions
-	pub -> tag in n.pubTags
+	//pub -> tag in n.pubTags
 	pub in n.contents
 	contentOwner[pub] in getGroup[n, tag.tagRefUser, Friends]
 
@@ -154,4 +154,9 @@ assert NoPrivacyViolation {
 		invariant[pre] and e.n = pre and e.n' = post implies invariant[post]
 }
 
-check NoPrivacyViolation for 5
+//check NoPrivacyViolation
+
+run {
+	some pre, post : Nicebook, e : AddTag |
+		invariant[pre] and e.n = pre and e.n' = post implies invariant[post]
+}
