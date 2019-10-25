@@ -9,13 +9,21 @@ module basic
 sig Nicebook {
 	users : set User,
 	friendships : User -> User,
-	contents: set Content
+	contents: set Content,
+	pubTags: Publishable one -> Tag
 } {
 	// All users in friendship should be in users
 	all u : friendships.User | u in users
 	all u : User.friendships | u in users
 	// All owners of the contents should be in users
 	all c : contents | contentOwner[c] in users
+
+	// All comments must belong to some content in this nicebook
+	all com : (contents & Comment) | com.commentBelongContent in contents
+	all con : contents | commentBelongContent.con in contents
+
+	// All Publishable in pubTags should be in this Nicebook
+	all pub : pubTags.Tag | pub in contents
 }
 
 sig User {
@@ -36,7 +44,6 @@ abstract sig Content {
 }
 
 abstract sig Publishable extends Content {
-	pubTag : set Tag
 }
 
 sig Note extends Publishable {
@@ -55,9 +62,6 @@ sig Comment extends Content {
 sig Tag {
 	// A tag reference one user
 	tagRefUser : one User
-} {
-	// Every tag belongs to exactly one publishable
-	one pubTag.this
 }
 
 sig Wall {
@@ -80,8 +84,8 @@ fun contentOwner[c : Content] : one User {
 }
 
 // Get the owner of the tag
-fun tagOwner[t : Tag] : one User {
-	pubTag.t.contentBelongUser
+fun tagOwner[n : Nicebook, t : Tag] : one User {
+	n.pubTags.t.contentBelongUser
 }
 
 fun commentsOfNicebook[n : Nicebook] : set Comment {
@@ -102,7 +106,7 @@ pred isContentOnWall[n : Nicebook, c : Content] {
 }
 
 // Get the wall of the content if there is any
-fun wallOfContent[n : Nicebook, c : Content] : one Wall {
+fun wallOfContent[n : Nicebook, c : Content] : set Wall {
 	c not in n.contents =>
 		none
 	else c in Publishable =>
@@ -116,14 +120,12 @@ fun wallOfContent[n : Nicebook, c : Content] : one Wall {
 
 // Basic constraints
 pred basicConstraints[n : Nicebook] {
-	// Each user owns one or more pieces of content
-	all u : n.users | some c : Content | contentOwner[c] = u
 	// Sysmetry friendship: all friends of mine should also treat me as friends
 	all u1, u2 : n.users | u1 -> u2 in n.friendships implies u2 -> u1 in n.friendships
 	// No self-friendship
 	all u : n.users | u -> u not in n.friendships
 	// A user can only tagged by his/own friends
-	all u : n.users | all t : Tag | t.tagRefUser = u implies (tagOwner[t] -> u in n.friendships)
+	all u : n.users | all t : Tag | t.tagRefUser = u implies (tagOwner[n, t] -> u in n.friendships)
 	
 	// No cycle in comments chain
 	all com : commentsOfNicebook[n] | com not in com.^(commentBelongContent)
@@ -137,5 +139,5 @@ pred basicConstraints[n : Nicebook] {
 
 run {
 	all n : Nicebook | basicConstraints[n]
-} for 2 but exactly 2 Nicebook
+} for 3 but exactly 2 Comment
 
