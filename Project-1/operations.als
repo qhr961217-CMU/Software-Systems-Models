@@ -149,10 +149,9 @@ sig RemoveTag extends TagOp {
 }
 
 // Check the invariant preserves via by all of the operations(events)
-assert NoPrivacyVialation {
+assert NoPrivacyViolation {
 	all pre, post : Nicebook, e : Event |
 		invariant[pre] and e.n = pre and e.n' = post implies invariant[post]
 }
 
-// Check for the scope of 5
-check NoPrivacyVialation for 5
+check NoPrivacyViolation for 5
