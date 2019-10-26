@@ -167,7 +167,7 @@ assert NoPrivacyViolation {
 		invariant[pre] and e.n = pre and e.n' = post implies invariant[post]
 }
 
-check NoPrivacyViolation for 3 but exactly 2 Nicebook
+check NoPrivacyViolation for 5
 
 /*
  * Run commands for various operations
