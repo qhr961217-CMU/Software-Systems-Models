@@ -112,11 +112,11 @@ SUB_POWER_SYSTEM[elec:ElecStateT][plug:PlugStateT][batt:BattStateT][power:PowerS
 		unplug -> power_failure -> SUB_POWER_SYSTEM[elec][Unplugged][batt][PowerOff]
 	|
 	when (power == PowerOn && batt == BattBroken && elec == ElecWorking && plug == Plugged)
-		elec_failure -> power_failure -> SUB_POWER_SYSTEM[ElecBroken][plug][batt][PowerOff]
+		power_failure -> SUB_POWER_SYSTEM[ElecBroken][plug][batt][PowerOff]
 	|
 	// The power is supplied solely by the battery
 	when (power == PowerOn && batt == BattWorking && (elec == ElecBroken || plug == Unplugged))
-		batt_failure -> power_failure -> SUB_POWER_SYSTEM[elec][plug][BattBroken][PowerOff]
+		power_failure -> SUB_POWER_SYSTEM[elec][plug][BattBroken][PowerOff]
 	|
 	// The battery is not working properly
 	when (batt == BattBroken)
