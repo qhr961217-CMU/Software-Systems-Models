@@ -15,16 +15,20 @@
 // Set of actions that the user of the LTSA tool can control in an
 // animation of this model.
 //
+
+const MaxLineNum = 2
+range LineIDs = 1 .. MaxLineNum
+
 menu UserControlMenu = {
 	// POWER_SYSTEM
-	e_reconnect, plug_in, unplug, turn_off,
+	turn_on, plug_in, unplug, turn_off, replace_batt, restore_elec,
 
 	// PUMP
-    change_settings, clear_rate, confirm_settings, connect_set,
-    dispense_main_med_flow, enter_value, erase_and_unlock_line,
-    flow_unblocked, sound_alarm, lock_unit, press_cancel, 
-    press_set, set_rate, silence_alarm, unlock_unit,
-    flow_blocked
+    line[i:LineIDs].change_settings, line[i:LineIDs].clear_rate, line[i:LineIDs].confirm_settings, line[i:LineIDs].connect_set,
+    line[i:LineIDs].dispense_main_med_flow, line[i:LineIDs].enter_value, line[i:LineIDs].erase_and_unlock_line,
+    line[i:LineIDs].flow_unblocked, line[i:LineIDs].sound_alarm, line[i:LineIDs].lock_unit, line[i:LineIDs].press_cancel, 
+    line[i:LineIDs].press_set, line[i:LineIDs].set_rate, line[i:LineIDs].silence_alarm, line[i:LineIDs].unlock_unit,
+    line[i:LineIDs].flow_blocked
 }
 
 //======================
@@ -220,4 +224,7 @@ INFUSION_BLOCKED[unitLock:UnitLockStateT][alarm:AlarmStateT] =
 ).
 
 
-||INFUSSION_PUMP = (PUMP || POWER_SYSTEM).
+||INFUSSION_PUMP = (line[LineIDs]:PUMP || POWER_SYSTEM) /
+	{turn_on / line[LineIDs].turn_on,
+	turn_off / line[LineIDs].turn_off,
+	power_failure / line[LineIDs].power_failure}.
