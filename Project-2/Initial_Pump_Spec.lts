@@ -16,10 +16,14 @@
 // animation of this model.
 //
 menu UserControlMenu = {
+	// POWER_SYSTEM
+	e_reconnect, plug_in, unplug, turn_off,
+
+	// PUMP
     change_settings, clear_rate, confirm_settings, connect_set,
     dispense_main_med_flow, enter_value, erase_and_unlock_line,
-    flow_unblocked, sound_alarm, lock_unit, plug_in, press_cancel, 
-    press_set, set_rate, silence_alarm, turn_off, unlock_unit, unplug,
+    flow_unblocked, sound_alarm, lock_unit, press_cancel, 
+    press_set, set_rate, silence_alarm, unlock_unit,
     flow_blocked
 }
 
@@ -60,16 +64,62 @@ const UnitLocked   = 7  // the keypad of the pump is locked
 range UnitLockStateT = UnitUnlocked .. UnitLocked
 
 //=====================
-// Process Definitions
+// Power System Process 
 //=====================
 
-PUMP = UNPLUGGED,
+const ElecUnplugged = 0
+const ElecPlugged = 1
 
-UNPLUGGED =
-(
-    plug_in -> POWER_OFF
+range ElecPlugStateT = ElecUnplugged .. ElecPlugged
+
+POWER_SYSTEM = UNPLUGGED,
+UNPLUGGED = (
+	turn_on -> (
+		plug_in -> PLUGGED
+		|
+		e_fail -> BATT_WORKING[ElecUnplugged]
+	)
 ),
+PLUGGED = (
+	e_connect -> ELEC_WORKING
+),
+ELEC_WORKING = (
+	e_fail -> BATT_WORKING[ElecPlugged]
+	|
+	turn_off -> UNPLUGGED
+	|
+	unplug -> BATT_WORKING[ElecUnplugged]
+),
+BATT_WORKING[isPlugged:ElecPlugStateT] = (
+	e_reconnect -> ELEC_WORKING
+	|
+	b_fail -> P_FAILING[isPlugged]
+	|
+	turn_off -> UNPLUGGED
+	|
+	when (isPlugged == ElecPlugged)
+		unplug -> BATT_WORKING[ElecUnplugged]
+),
+P_FAILING[isPlugged:ElecPlugStateT] = (
+	when (isPlugged == ElecPlugged)
+		e_reconnect -> turn_on -> ELEC_WORKING
+	|
+	when (isPlugged == ElecUnplugged)
+		plug_in -> turn_on -> ELEC_WORKING
+	|
+	b_replace -> turn_on -> BATT_WORKING[isPlugged]
+).
 
+//=====================
+// Line Process 
+//=====================
+
+
+//=====================
+// Pump Process 
+//=====================
+
+PUMP = POWER_OFF,
 POWER_OFF = 
 (
     turn_on -> SETUP[ParamsNotSet][LineUnlocked]
@@ -82,8 +132,8 @@ POWER_OFF =
 //
 SETUP[params:ParamsStateT][lineLock:LineLockStateT] = 
 (
-    unplug -> UNPLUGGED
-    |
+	power_fail -> POWER_OFF
+	|
     turn_off -> POWER_OFF
     |
     when (params == ParamsNotSet && lineLock == LineUnlocked)
@@ -113,8 +163,8 @@ SETUP[params:ParamsStateT][lineLock:LineLockStateT] =
 //
 INFUSION[unitLock:UnitLockStateT] =
 (
-    unplug -> UNPLUGGED
-    |
+	power_fail -> POWER_OFF
+	|
     turn_off -> POWER_OFF
     |
     when (unitLock == UnitUnlocked)
@@ -136,8 +186,8 @@ INFUSION[unitLock:UnitLockStateT] =
 //
 INFUSION_BLOCKED[unitLock:UnitLockStateT][alarm:AlarmStateT] =
 (
-    unplug -> UNPLUGGED
-    |
+	power_fail -> POWER_OFF
+	|
     turn_off -> POWER_OFF
     |
     when (alarm == AlarmActivated)
@@ -149,3 +199,6 @@ INFUSION_BLOCKED[unitLock:UnitLockStateT][alarm:AlarmStateT] =
     flow_unblocked -> INFUSION[unitLock]
 ).
 
+
+||INFUSSION_PUMP(N=2) = (p[1..N]:PUMP || {p[1..N]}::POWER_SYSTEM)
+	/ {power_fail/p[1..N].b_fail, turn_on/p[1..N].turn_on}.
