@@ -24,11 +24,13 @@ menu UserControlMenu = {
 	turn_on, plug_in, unplug, turn_off, replace_batt, restore_elec,
 
 	// PUMP
-    line[i:LineIDs].change_settings, line[i:LineIDs].clear_rate, line[i:LineIDs].confirm_settings, line[i:LineIDs].connect_set,
-    line[i:LineIDs].dispense_main_med_flow, line[i:LineIDs].enter_value, line[i:LineIDs].erase_and_unlock_line,
-    line[i:LineIDs].flow_unblocked, line[i:LineIDs].sound_alarm, line[i:LineIDs].lock_unit, line[i:LineIDs].press_cancel, 
-    line[i:LineIDs].press_set, line[i:LineIDs].set_rate, line[i:LineIDs].silence_alarm, line[i:LineIDs].unlock_unit,
-    line[i:LineIDs].flow_blocked
+	line[i:LineIDs].set_rate, line[i:LineIDs].clear_rate,
+	line[i:LineIDs].change_settings, line[i:LineIDs].confirm_settings,
+	line[i:LineIDs].connect_line, line[i:LineIDs].dispense_main_med_flow,
+	line[i:LineIDs].enter_value, line[i:LineIDs].lock_line, line[i:LineIDs].erase_and_unlock_line,
+	line[i:LineIDs].lock_unit, line[i:LineIDs].press_cancel, 
+    line[i:LineIDs].press_set, line[i:LineIDs].unlock_unit,
+	line[i:LineIDs].fix_line
 }
 
 //======================
@@ -42,30 +44,6 @@ const AlarmActivated = 0    // Alarm currently active
 const AlarmSilenced  = 1    // Alarm currently inactive
 
 range AlarmStateT = AlarmActivated .. AlarmSilenced
-
-//
-// States of the pump settings
-//
-const ParamsNotSet = 2    // pump parameters not set yet
-const ParamsSet    = 3    // pump parameters already set
-
-range ParamsStateT = ParamsNotSet .. ParamsSet
-
-//
-// Locked/unlocked states of a line with respect to a pump channel
-//
-const LineUnlocked = 4  // line not locked into a pump channel 
-const LineLocked   = 5  // line locked into a pump channel
-
-range LineLockStateT = LineUnlocked .. LineLocked
-
-//
-// Locked/unlocked states of the pump unit
-//
-const UnitUnlocked = 6  // the keypad of the pump is not locked
-const UnitLocked   = 7  // the keypad of the pump is locked
-
-range UnitLockStateT = UnitUnlocked .. UnitLocked
 
 //=====================
 // Power System Process 
@@ -139,92 +117,104 @@ SUB_POWER_SYSTEM[elec:ElecStateT][plug:PlugStateT][batt:BattStateT][power:PowerS
 //=====================
 
 
-//=====================
-// Pump Process 
-//=====================
+const LineBroken = 0
+const LineWorking = 1
+range LineStateT = LineBroken .. LineWorking
 
-PUMP = POWER_OFF,
-POWER_OFF = 
-(
-    turn_on -> SETUP[ParamsNotSet][LineUnlocked]
+//
+// States of the pump settings
+//
+const ParamsNotSet = 0    // pump parameters not set yet
+const ParamsSet    = 1    // pump parameters already set
+range ParamsStateT = ParamsNotSet .. ParamsSet
+
+//
+// Locked/unlocked states of a line with respect to a pump channel
+//
+const LineUnlocked = 0  // line not locked into a pump channel 
+const LineLocked   = 1  // line locked into a pump channel
+range LineLockStateT = LineUnlocked .. LineLocked
+
+//
+// Locked/unlocked states of the pump unit
+//
+const UnitUnlocked = 0  // the keypad of the pump is not locked
+const UnitLocked   = 1  // the keypad of the pump is locked
+range UnitLockStateT = UnitUnlocked .. UnitLocked
+
+LINE = LINE_OFF,
+LINE_OFF = (
+	turn_on -> LINE_SETUP[ParamsNotSet][LineWorking][LineUnlocked]
 ),
 
 //
-// Pump in setup mode:
-// - Once required pump parameters (just rate in this case) are set,
+// Line in setup mode:
+// - Once required line parameters (just rate in this case) are set,
 //   physical connections can be made and line can be locked
 //
-SETUP[params:ParamsStateT][lineLock:LineLockStateT] = 
-(
-	power_failure -> POWER_OFF
+LINE_SETUP[params:ParamsStateT][state:LineStateT][lock:LineLockStateT] = (
+	power_failure -> LINE_OFF
 	|
-    turn_off -> POWER_OFF
-    |
-    when (params == ParamsNotSet && lineLock == LineUnlocked)
-        set_rate -> enter_value ->
-            (press_set -> SETUP[ParamsSet][lineLock]
+	turn_off -> LINE_OFF
+	|
+	when (state == LineBroken)
+		fix_line -> LINE_SETUP[params][LineWorking][lock]
+	|
+	when (state == LineWorking)
+		line_break -> alarm_sound -> LINE_SETUP[params][LineBroken][lock]
+	|
+	when (params == ParamsNotSet && state == LineWorking && lock == LineUnlocked)
+		set_rate -> enter_value ->
+            (press_set -> LINE_SETUP[ParamsSet][state][lock]
              |
-             press_cancel -> SETUP[ParamsNotSet][lineLock])
+             press_cancel -> LINE_SETUP[ParamsNotSet][state][lock])
+	|
+	when (params == ParamsSet && state == LineWorking && lock == LineUnlocked)
+        clear_rate -> LINE_SETUP[ParamsNotSet][state][lock]
     |
-    when (params == ParamsSet && lineLock == LineUnlocked)
-        clear_rate -> SETUP[ParamsNotSet][lineLock]
+    when (params == ParamsSet && state == LineWorking && lock == LineUnlocked)
+        connect_line -> purge_air -> lock_line -> LINE_SETUP[params][state][LineLocked]
     |
-    when (params == ParamsSet && lineLock == LineUnlocked)
-        connect_set -> purge_air -> lock_line -> SETUP[params][LineLocked]
+    when (params == ParamsSet && state == LineWorking && lock == LineLocked)
+        confirm_settings -> LINE_INFUSION[UnitUnlocked]
     |
-    when (lineLock == LineLocked)
-        confirm_settings -> INFUSION[UnitUnlocked]
-    |
-    when (lineLock == LineLocked)
-        erase_and_unlock_line -> SETUP[params][LineUnlocked]
+    when (params == ParamsSet && state == LineWorking && lock == LineLocked)
+        erase_and_unlock_line -> LINE_SETUP[params][state][LineUnlocked]
 ),
 
 //
-// Pump in infusion mode:
-// - Always be able to turn the unit off, even if locked
+// Line in infusion mode:
+// - Always be able to turn the line off, even if locked
 // - Allow the user to lock/unlock the unit
-// - Errors could occur with the pump (e.g., line became pinched or plugged)
+// - Errors could occur with the line (e.g., line became pinched or plugged)
 //
-INFUSION[unitLock:UnitLockStateT] =
-(
-	power_failure -> POWER_OFF
+LINE_INFUSTION[unitLock:UnitLockStateT] = (
+	power_failure -> LINE_OFF
 	|
-    turn_off -> POWER_OFF
+	turn_off -> LINE_OFF
+	|
+	line_break -> sound_alarm -> LINE_SETUP[ParamsSet][LineBroken][LineUnlocked]
+	|
+	when (unitLock == UnitUnlocked)
+        change_settings -> LINE_SETUP[ParamsSet][LineWorking][LineLocked]
     |
     when (unitLock == UnitUnlocked)
-        change_settings -> SETUP[ParamsSet][LineLocked]
-    |
-    when (unitLock == UnitUnlocked)
-        lock_unit -> INFUSION[UnitLocked]
+        lock_unit -> LINE_INFUSTION[UnitLocked]
     |
     when (unitLock == UnitLocked)
-        unlock_unit -> INFUSION[UnitUnlocked]
+        unlock_unit -> LINE_INFUSTION[UnitUnlocked]
     |
-    dispense_main_med_flow -> INFUSION[unitLock]
-    |
-    flow_blocked -> sound_alarm -> INFUSION_BLOCKED[unitLock][AlarmActivated]
-),
-
-//
-// Pump stuck (medication flow suspended)
-//
-INFUSION_BLOCKED[unitLock:UnitLockStateT][alarm:AlarmStateT] =
-(
-	power_failure -> POWER_OFF
-	|
-    turn_off -> POWER_OFF
-    |
-    when (alarm == AlarmActivated)
-        sound_alarm -> INFUSION_BLOCKED[unitLock][alarm]
-    |
-    when (alarm == AlarmActivated)
-        silence_alarm -> INFUSION_BLOCKED[unitLock][AlarmSilenced]
-    |
-    flow_unblocked -> INFUSION[unitLock]
+	when (unitLock == UnitLocked)
+    	dispense_main_med_flow -> LINE_INFUSTION[unitLock]
 ).
 
 
-||INFUSSION_PUMP = (line[LineIDs]:PUMP || POWER_SYSTEM) /
+//=====================
+// Alarm Process 
+//=====================
+
+
+||INFUSSION_PUMP = (line[LineIDs]:LINE || POWER_SYSTEM) /
 	{turn_on / line[LineIDs].turn_on,
 	turn_off / line[LineIDs].turn_off,
 	power_failure / line[LineIDs].power_failure}.
