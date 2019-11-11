@@ -188,7 +188,7 @@ LINE_SETUP[params:ParamsStateT][state:LineStateT][lock:LineLockStateT] = (
 // - Allow the user to lock/unlock the unit
 // - Errors could occur with the line (e.g., line became pinched or plugged)
 //
-LINE_INFUSTION[unitLock:UnitLockStateT] = (
+LINE_INFUSION[unitLock:UnitLockStateT] = (
 	power_failure -> LINE_OFF
 	|
 	turn_off -> LINE_OFF
@@ -199,13 +199,13 @@ LINE_INFUSTION[unitLock:UnitLockStateT] = (
         change_settings -> LINE_SETUP[ParamsSet][LineWorking][LineLocked]
     |
     when (unitLock == UnitUnlocked)
-        lock_unit -> LINE_INFUSTION[UnitLocked]
+        lock_unit -> LINE_INFUSION[UnitLocked]
     |
     when (unitLock == UnitLocked)
-        unlock_unit -> LINE_INFUSTION[UnitUnlocked]
+        unlock_unit -> LINE_INFUSION[UnitUnlocked]
     |
 	when (unitLock == UnitLocked)
-    	dispense_main_med_flow -> LINE_INFUSTION[unitLock]
+    	dispense_main_med_flow -> LINE_INFUSION[unitLock]
 ).
 
 
@@ -214,7 +214,7 @@ LINE_INFUSTION[unitLock:UnitLockStateT] = (
 //=====================
 
 
-||INFUSSION_PUMP = (line[LineIDs]:LINE || POWER_SYSTEM) /
+||PUMP = (line[LineIDs]:LINE || POWER_SYSTEM) /
 	{turn_on / line[LineIDs].turn_on,
 	turn_off / line[LineIDs].turn_off,
 	power_failure / line[LineIDs].power_failure}.
