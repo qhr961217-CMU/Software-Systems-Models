@@ -67,47 +67,67 @@ range UnitLockStateT = UnitUnlocked .. UnitLocked
 // Power System Process 
 //=====================
 
-const ElecUnplugged = 0
-const ElecPlugged = 1
+const ElecBroken = 0
+const ElecWorking = 1
+range ElecStateT = ElecBroken .. ElecWorking
 
-range ElecPlugStateT = ElecUnplugged .. ElecPlugged
+const Unplugged = 0
+const Plugged = 1
+range PlugStateT = Unplugged .. Plugged
 
-POWER_SYSTEM = UNPLUGGED,
-UNPLUGGED = (
-	turn_on -> (
-		plug_in -> PLUGGED
-		|
-		e_fail -> BATT_WORKING[ElecUnplugged]
-	)
-),
-PLUGGED = (
-	e_connect -> ELEC_WORKING
-),
-ELEC_WORKING = (
-	e_fail -> BATT_WORKING[ElecPlugged]
+const BattBroken = 0
+const BattWorking = 1
+range BattStateT = BattBroken .. BattWorking
+
+const PowerOff = 0
+const PowerOn = 1
+range PowerStateT = PowerOff .. PowerOn
+
+POWER_SYSTEM = SUB_POWER_SYSTEM[ElecWorking][Unplugged][BattWorking][PowerOff],
+SUB_POWER_SYSTEM[elec:ElecStateT][plug:PlugStateT][batt:BattStateT][power:PowerStateT] = (
+	// The power system is able to be turned on
+	when (power == PowerOff && (batt == BattWorking || (elec == ElecWorking && plug == Plugged)))
+		turn_on -> SUB_POWER_SYSTEM[elec][plug][batt][PowerOn]
 	|
-	turn_off -> UNPLUGGED
+	// The power system is already working - supplied by either sources
+	when (power == PowerOn)
+		turn_off -> SUB_POWER_SYSTEM[elec][plug][batt][PowerOff]
 	|
-	unplug -> BATT_WORKING[ElecUnplugged]
-),
-BATT_WORKING[isPlugged:ElecPlugStateT] = (
-	e_reconnect -> ELEC_WORKING
+	// The power is supplied by both
+	when (power == PowerOn && batt == BattWorking && elec == ElecWorking && plug == Plugged)
+		unplug -> SUB_POWER_SYSTEM[elec][Unplugged][batt][PowerOn]
 	|
-	b_fail -> P_FAILING[isPlugged]
+	when (power == PowerOn && batt == BattWorking && elec == ElecWorking && plug == Plugged)
+		elec_failure -> SUB_POWER_SYSTEM[ElecBroken][plug][batt][PowerOn]
 	|
-	turn_off -> UNPLUGGED
+	when (power == PowerOn && batt == BattWorking && elec == ElecWorking && plug == Plugged)
+		batt_failure -> SUB_POWER_SYSTEM[elec][plug][BattBroken][PowerOn]
 	|
-	when (isPlugged == ElecPlugged)
-		unplug -> BATT_WORKING[ElecUnplugged]
-),
-P_FAILING[isPlugged:ElecPlugStateT] = (
-	when (isPlugged == ElecPlugged)
-		e_reconnect -> turn_on -> ELEC_WORKING
+	// The power is supplied solely by electricity
+	when (power == PowerOn && batt == BattBroken && elec == ElecWorking && plug == Plugged)
+		unplug -> power_failure -> SUB_POWER_SYSTEM[elec][Unplugged][batt][PowerOff]
 	|
-	when (isPlugged == ElecUnplugged)
-		plug_in -> turn_on -> ELEC_WORKING
+	when (power == PowerOn && batt == BattBroken && elec == ElecWorking && plug == Plugged)
+		elec_failure -> power_failure -> SUB_POWER_SYSTEM[ElecBroken][plug][batt][PowerOff]
 	|
-	b_replace -> turn_on -> BATT_WORKING[isPlugged]
+	// The power is supplied solely by the battery
+	when (power == PowerOn && batt == BattWorking && (elec == ElecBroken || plug == Unplugged))
+		batt_failure -> power_failure -> SUB_POWER_SYSTEM[elec][plug][BattBroken][PowerOff]
+	|
+	// The battery is not working properly
+	when (batt == BattBroken)
+		// Replace the battery
+		replace_batt -> SUB_POWER_SYSTEM[elec][plug][BattWorking][power]
+	|
+	// The cord is unplugged
+	when (plug == Unplugged)
+		// Plug in the cord
+		plug_in -> SUB_POWER_SYSTEM[elec][Plugged][batt][power]
+	|
+	// The external electricity is broken
+	when (elec == ElecBroken)
+		// Restore the external electricity
+		restore_elec -> SUB_POWER_SYSTEM[ElecWorking][plug][batt][power]
 ).
 
 //=====================
@@ -132,7 +152,7 @@ POWER_OFF =
 //
 SETUP[params:ParamsStateT][lineLock:LineLockStateT] = 
 (
-	power_fail -> POWER_OFF
+	power_failure -> POWER_OFF
 	|
     turn_off -> POWER_OFF
     |
@@ -163,7 +183,7 @@ SETUP[params:ParamsStateT][lineLock:LineLockStateT] =
 //
 INFUSION[unitLock:UnitLockStateT] =
 (
-	power_fail -> POWER_OFF
+	power_failure -> POWER_OFF
 	|
     turn_off -> POWER_OFF
     |
@@ -186,7 +206,7 @@ INFUSION[unitLock:UnitLockStateT] =
 //
 INFUSION_BLOCKED[unitLock:UnitLockStateT][alarm:AlarmStateT] =
 (
-	power_fail -> POWER_OFF
+	power_failure -> POWER_OFF
 	|
     turn_off -> POWER_OFF
     |
@@ -200,5 +220,4 @@ INFUSION_BLOCKED[unitLock:UnitLockStateT][alarm:AlarmStateT] =
 ).
 
 
-||INFUSSION_PUMP(N=2) = (p[1..N]:PUMP || {p[1..N]}::POWER_SYSTEM)
-	/ {power_fail/p[1..N].b_fail, turn_on/p[1..N].turn_on}.
+||INFUSSION_PUMP = (PUMP || POWER_SYSTEM).
