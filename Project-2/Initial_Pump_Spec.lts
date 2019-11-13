@@ -20,17 +20,20 @@ const MaxLineNum = 2
 range LineIDs = 1 .. MaxLineNum
 
 menu UserControlMenu = {
-	// POWER_SYSTEM
-	turn_on, plug_in, unplug, turn_off, replace_batt, restore_elec,
-
-	// PUMP
-	line[i:LineIDs].set_rate, line[i:LineIDs].clear_rate,
-	line[i:LineIDs].change_settings, line[i:LineIDs].confirm_settings,
-	line[i:LineIDs].connect_line, line[i:LineIDs].dispense_main_med_flow,
-	line[i:LineIDs].enter_value, line[i:LineIDs].lock_line, line[i:LineIDs].erase_and_unlock_line,
+	// POWER_SYSTEM UI
+	turn_on,  turn_off,
+	
+	// PUMP UI
+	line[i:LineIDs].set_rate, line[i:LineIDs].clear_rate, line[i:LineIDs].change_settings,
+	line[i:LineIDs].confirm_settings, line[i:LineIDs].dispense_main_med_flow,
+	line[i:LineIDs].enter_value, line[i:LineIDs].erase_and_unlock_line,
 	line[i:LineIDs].lock_unit, line[i:LineIDs].press_cancel, 
     line[i:LineIDs].press_set, line[i:LineIDs].unlock_unit,
-	line[i:LineIDs].fix_line, line[i:LineIDs].silence_alarm
+	line[i:LineIDs].silence_alarm, line[i:LineIDs].connect_line,
+
+	// Physical Actions
+	plug_in, unplug, replace_batt, restore_elec, // POWER_SYSTEM
+	line[i:LineIDs].fix_line // PUMP
 }
 
 //=====================
@@ -179,7 +182,8 @@ LINE_SETUP[params:ParamsStateT][state:LineStateT][lock:LineLockStateT] = (
 LINE_INFUSION[unitLock:UnitLockStateT] = (
 	power_failure -> LINE_OFF
 	|
-	turn_off -> LINE_OFF
+	when (unitLock == UnitUnlocked)
+		turn_off -> LINE_OFF
 	|
 	line_break -> sound_alarm -> LINE_SETUP[ParamsSet][LineBroken][LineUnlocked]
 	|
@@ -233,11 +237,71 @@ SUB_ALARM[alarmState:AlarmStateT][failedNum:FailedNumStateT] = (
 		fix_line -> SUB_ALARM[AlarmSilenced][failedNum-1]
 	|
 	when (failedNum > 1)
-		fix_line -> SUB_ALARM[AlarmActivated][failedNum-1]
+		fix_line -> SUB_ALARM[alarmState][failedNum-1]
 ).
 
+//=====================
+// User Interface
+//=====================
 
-||PUMP = (line[LineIDs]:LINE || POWER_SYSTEM || {line[LineIDs]}::ALARM) /
+||UI = (line[LineIDs]:SUB_UI).
+
+SUB_UI = UI_POWER_OFF,
+UI_POWER_OFF = (
+	turn_on -> UI_INIT
+),
+UI_INIT = (
+	turn_off -> UI_POWER_OFF
+	|
+	power_failure -> UI_POWER_OFF
+	|
+	set_rate -> enter_value -> VALUE_ENTERED
+),
+VALUE_ENTERED = (
+	turn_off -> UI_POWER_OFF
+	|
+	power_failure -> UI_POWER_OFF
+	|
+	press_cancel -> UI_INIT
+	|
+	press_set -> VALUE_SET
+),
+VALUE_SET = (
+	turn_off -> UI_POWER_OFF
+	|
+	power_failure -> UI_POWER_OFF
+	|
+	clear_rate -> UI_INIT
+	|
+	connect_line -> LINE_CONNECTED
+),
+LINE_CONNECTED = (
+	turn_off -> UI_POWER_OFF
+	|
+	power_failure -> UI_POWER_OFF
+	|
+	confirm_settings -> SETTING_CONFIRMED
+	|
+	erase_and_unlock_line -> VALUE_SET
+),
+SETTING_CONFIRMED = (
+	turn_off -> UI_POWER_OFF
+	|
+	power_failure -> UI_POWER_OFF
+	|
+	change_settings -> LINE_CONNECTED
+	|
+	lock_unit -> UNIT_LOCKED
+),
+UNIT_LOCKED = (
+	power_failure -> UI_POWER_OFF
+	|
+	unlock_unit -> SETTING_CONFIRMED
+	|
+	dispense_main_med_flow -> UNIT_LOCKED
+).
+
+||PUMP = (line[LineIDs]:LINE || POWER_SYSTEM || {line[LineIDs]}::ALARM || UI) /
 	{turn_on / line[LineIDs].turn_on,
 	turn_off / line[LineIDs].turn_off,
 	power_failure / line[LineIDs].power_failure,
