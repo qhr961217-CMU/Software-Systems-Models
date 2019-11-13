@@ -30,20 +30,8 @@ menu UserControlMenu = {
 	line[i:LineIDs].enter_value, line[i:LineIDs].lock_line, line[i:LineIDs].erase_and_unlock_line,
 	line[i:LineIDs].lock_unit, line[i:LineIDs].press_cancel, 
     line[i:LineIDs].press_set, line[i:LineIDs].unlock_unit,
-	line[i:LineIDs].fix_line
+	line[i:LineIDs].fix_line, line[i:LineIDs].silence_alarm
 }
-
-//======================
-// Constants and Ranges
-//======================
-
-//
-// States of the pump alarm
-//
-const AlarmActivated = 0    // Alarm currently active
-const AlarmSilenced  = 1    // Alarm currently inactive
-
-range AlarmStateT = AlarmActivated .. AlarmSilenced
 
 //=====================
 // Power System Process 
@@ -161,7 +149,7 @@ LINE_SETUP[params:ParamsStateT][state:LineStateT][lock:LineLockStateT] = (
 		fix_line -> LINE_SETUP[params][LineWorking][lock]
 	|
 	when (state == LineWorking)
-		line_break -> alarm_sound -> LINE_SETUP[params][LineBroken][lock]
+		line_break -> LINE_SETUP[params][LineBroken][lock]
 	|
 	when (params == ParamsNotSet && state == LineWorking && lock == LineUnlocked)
 		set_rate -> enter_value ->
@@ -213,8 +201,49 @@ LINE_INFUSION[unitLock:UnitLockStateT] = (
 // Alarm Process 
 //=====================
 
+//
+// States of the pump alarm
+//
+const AlarmSilenced  = 0    // Alarm currently inactive
+const AlarmActivated = 1    // Alarm currently active
+range AlarmStateT = AlarmSilenced .. AlarmActivated
 
-||PUMP = (line[LineIDs]:LINE || POWER_SYSTEM) /
+range FailedNumStateT = 0 .. MaxLineNum
+
+// Nurses can silence the alarm even though the problem is not solved
+ALARM = ALARM_POWER_OFF,
+ALARM_POWER_OFF = (
+	turn_on -> SUB_ALARM[AlarmSilenced][0]
+),
+SUB_ALARM[alarmState:AlarmStateT][failedNum:FailedNumStateT] = (
+	power_failure -> ALARM_POWER_OFF
+	|
+	turn_off -> ALARM_POWER_OFF
+	|
+	when (alarmState == AlarmActivated)
+		alarm_sound -> SUB_ALARM[alarmState][failedNum]
+	|
+	when (alarmState == AlarmActivated)
+		silence_alarm -> SUB_ALARM[AlarmSilenced][failedNum]
+	|
+	when (failedNum < MaxLineNum)
+		line_break -> SUB_ALARM[AlarmActivated][failedNum+1]
+	|
+	when (failedNum == 1)
+		fix_line -> SUB_ALARM[AlarmSilenced][failedNum-1]
+	|
+	when (failedNum > 1)
+		fix_line -> SUB_ALARM[AlarmActivated][failedNum-1]
+).
+
+
+||PUMP = (line[LineIDs]:LINE || POWER_SYSTEM || {line[LineIDs]}::ALARM) /
 	{turn_on / line[LineIDs].turn_on,
 	turn_off / line[LineIDs].turn_off,
-	power_failure / line[LineIDs].power_failure}.
+	power_failure / line[LineIDs].power_failure,
+	silence_alarm / line[LineIDs].silence_alarm,
+	alarm_sound / line[LineIDs].alarm_sound}.
+
+//=====================
+// Properties
+//=====================
