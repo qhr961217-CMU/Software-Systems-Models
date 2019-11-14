@@ -311,3 +311,20 @@ UNIT_LOCKED = (
 //=====================
 // Properties
 //=====================
+
+const False = 0
+const True = 1
+
+fluent PUMPING = <{line[i:LineIDs].dispense_main_med_flow},
+	{line[i:LineIDs].line_break, line[i:LineIDs].unlock_unit, turn_off, power_failure}>
+	initially False
+
+fluent ELEC_FAILURE = <unplug, plug_in>
+	initially True
+
+fluent CONFIRM_SETTING = <line[i:LineIDs].confirm_settings,
+	{line[i:LineIDs].change_settings, turn_off, power_failure}>
+	initially False
+
+// 1. The pump cannot start pumping without the operator first confirming the settings on the pump.
+assert CONFIRM_BEFORE_PUMP = [](PUMPING -> CONFIRM_SETTING)
