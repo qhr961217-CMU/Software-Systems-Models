@@ -29,7 +29,7 @@ menu UserControlMenu = {
 	line[i:LineIDs].enter_value, line[i:LineIDs].erase_and_unlock_line,
 	line[i:LineIDs].lock_unit, line[i:LineIDs].press_cancel, 
     line[i:LineIDs].press_set, line[i:LineIDs].unlock_unit,
-	line[i:LineIDs].silence_alarm, line[i:LineIDs].connect_line,
+	line[i:LineIDs].mute_alarm, line[i:LineIDs].connect_line, line[i:LineIDs].finish_treatment,
 
 	// Physical Actions
 	plug_in, unplug, replace_batt, restore_elec, // POWER_SYSTEM
@@ -195,6 +195,9 @@ LINE_INFUSION[unitLock:UnitLockStateT] = (
     |
     when (unitLock == UnitLocked)
         unlock_unit -> LINE_INFUSION[UnitUnlocked]
+	|
+	when (unitLock == UnitLocked)
+        finish_treatment -> LINE_INFUSION[UnitUnlocked]
     |
 	when (unitLock == UnitLocked)
     	dispense_main_med_flow -> LINE_INFUSION[unitLock]
@@ -208,33 +211,33 @@ LINE_INFUSION[unitLock:UnitLockStateT] = (
 //
 // States of the pump alarm
 //
-const AlarmSilenced  = 0    // Alarm currently inactive
-const AlarmActivated = 1    // Alarm currently active
-range AlarmStateT = AlarmSilenced .. AlarmActivated
+const AlarmMuted  = 0    // Alarm currently inactive
+const AlarmSounding = 1    // Alarm currently active
+range AlarmStateT = AlarmMuted .. AlarmSounding
 
 range FailedNumStateT = 0 .. MaxLineNum
 
 // Nurses can silence the alarm even though the problem is not solved
 ALARM = ALARM_POWER_OFF,
 ALARM_POWER_OFF = (
-	turn_on -> SUB_ALARM[AlarmSilenced][0]
+	turn_on -> SUB_ALARM[AlarmMuted][0]
 ),
 SUB_ALARM[alarmState:AlarmStateT][failedNum:FailedNumStateT] = (
 	power_failure -> ALARM_POWER_OFF
 	|
 	turn_off -> ALARM_POWER_OFF
 	|
-	when (alarmState == AlarmActivated)
+	when (alarmState == AlarmSounding)
 		alarm_sound -> SUB_ALARM[alarmState][failedNum]
 	|
-	when (alarmState == AlarmActivated)
-		silence_alarm -> SUB_ALARM[AlarmSilenced][failedNum]
+	when (alarmState == AlarmSounding)
+		mute_alarm -> SUB_ALARM[AlarmMuted][failedNum]
 	|
 	when (failedNum < MaxLineNum)
-		line_break -> SUB_ALARM[AlarmActivated][failedNum+1]
+		line_break -> SUB_ALARM[AlarmSounding][failedNum+1]
 	|
 	when (failedNum == 1)
-		fix_line -> SUB_ALARM[AlarmSilenced][failedNum-1]
+		fix_line -> alarm_stop -> SUB_ALARM[AlarmMuted][failedNum-1]
 	|
 	when (failedNum > 1)
 		fix_line -> SUB_ALARM[alarmState][failedNum-1]
@@ -305,7 +308,7 @@ UNIT_LOCKED = (
 	{turn_on / line[LineIDs].turn_on,
 	turn_off / line[LineIDs].turn_off,
 	power_failure / line[LineIDs].power_failure,
-	silence_alarm / line[LineIDs].silence_alarm,
+	mute_alarm / line[LineIDs].mute_alarm,
 	alarm_sound / line[LineIDs].alarm_sound}.
 
 //=====================
@@ -315,16 +318,80 @@ UNIT_LOCKED = (
 const False = 0
 const True = 1
 
-fluent PUMPING = <{line[i:LineIDs].dispense_main_med_flow},
-	{line[i:LineIDs].line_break, line[i:LineIDs].unlock_unit, turn_off, power_failure}>
+fluent CONFIRM_SETTING[i:LineIDs] = <line[i].confirm_settings,
+	{line[i].change_settings, turn_off, power_failure}>
+	initially False
+
+fluent PUMPING[i:LineIDs] = <line[i].dispense_main_med_flow,
+	{line[i].line_break, line[i].unlock_unit, turn_off, power_failure}>
 	initially False
 
 fluent ELEC_FAILURE = <unplug, plug_in>
 	initially True
 
-fluent CONFIRM_SETTING = <line[i:LineIDs].confirm_settings,
-	{line[i:LineIDs].change_settings, turn_off, power_failure}>
+fluent BATT_FAILURE = <batt_failure, replace_batt>
+	initially False
+
+fluent POWER_FAILURE = <power_failure, {replace_batt, plug_in}>
+	initially False
+
+fluent LINE_FAILURE[i:LineIDs] = <line[i].line_break, {line[i].fix_line}>
+	initially False
+
+fluent ALARM_SOUND = <alarm_sound, {alarm_stop, turn_off, power_failure, mute_alarm}>
+	initially False
+
+fluent ALARM_STOPPED = <{alarm_stop, power_failure, turn_off}, alarm_sound>
+	initially True
+
+fluent ALARM_MUTED = <mute_alarm, {alarm_stop, alarm_sound, turn_off, power_failure}>
+	initially True
+
+fluent UNIT_LOCKED[i:LineIDs] = <line[i].lock_unit, {line[i].unlock_unit, power_failure, turn_off}>
+	initially False
+
+fluent TREATMENT_FINISHED[i:LineIDs] = <line[i].finish_treatment,
+	{line[i].dispense_main_med_flow}>
 	initially False
 
 // 1. The pump cannot start pumping without the operator first confirming the settings on the pump.
-assert CONFIRM_BEFORE_PUMP = [](PUMPING -> CONFIRM_SETTING)
+assert CONFIRM_BEFORE_PUMP = [] forall[i:LineIDs] (
+	PUMPING[i] -> CONFIRM_SETTING[i]
+)
+
+// 2. Electrical power can fail infinitely often.
+assert ELEC_FAILS_INFINITELY = []<> ELEC_FAILURE
+
+// 3. If the backup battery power fails, pumping will not occur on any line.
+// - Doesn't hold because even battery fails, it's possible that the machine is powered by AC power
+assert BATT_FAILS_THEN_STOP_PUMPING = [] (BATT_FAILURE -> forall[i:LineIDs] (!PUMPING[i]))
+
+// 4. It is always possible to resume pumping after a failure.
+// (for each line.)
+assert RESUME_AFTER_FAILURE = [] forall[i:LineIDs] (
+	(POWER_FAILURE || LINE_FAILURE[i]) -> <> PUMPING[i]
+)
+
+// 5. An alarm will sound on any line failure.
+// - Doesn't hold because 
+assert ALARM_IF_LINE_FAILS = [] forall[i:LineIDs] (
+	LINE_FAILURE[i] -> ALARM_SOUND
+)
+
+// 6. In the absence of errors the pump will continue to pump until the treatment is finished.
+assert CONTINUE_PUMPING_IF_NO_ERROR = [] forall[i:LineIDs] (
+	PUMPING[i] -> (
+		(!(POWER_FAILURE || LINE_FAILURE[i]) && UNIT_LOCKED[i] U TREATMENT_FINISHED[i])
+			-> (PUMPING[i] U TREATMENT_FINISHED[i])
+	)
+)
+
+// 7. The system never deadlocks. (Tested automatically.)
+
+// 8. Alarm sound infinitely often until muted or stopped.
+assert ALARM_SOUND_INFINITELY_OFTEN_UNTIL_DEALT = ([](!ALARM_STOPPED && !ALARM_MUTED) -> []<>ALARM_SOUND)
+
+// 9. Eventually the treatment would be finished.
+assert TREATMENT_FINISH_EVENTUALLY = forall[i:LineIDs] (
+	<> TREATMENT_FINISHED[i]
+)
