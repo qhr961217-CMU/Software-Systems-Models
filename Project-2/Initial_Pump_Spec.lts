@@ -247,8 +247,6 @@ SUB_ALARM[alarmState:AlarmStateT][failedNum:FailedNumStateT] = (
 // User Interface
 //=====================
 
-||UI = (line[LineIDs]:SUB_UI).
-
 SUB_UI = UI_POWER_OFF,
 UI_POWER_OFF = (
 	turn_on -> UI_INIT
@@ -304,12 +302,11 @@ UNIT_LOCKED = (
 	dispense_main_med_flow -> UNIT_LOCKED
 ).
 
-
 //=====================
 // Composed Process
 //=====================
 
-||PUMP = (line[LineIDs]:LINE || POWER_SYSTEM || {line[LineIDs]}::ALARM || UI) /
+||PUMP = (line[LineIDs]:LINE || POWER_SYSTEM || {line[LineIDs]}::ALARM || line[LineIDs]:SUB_UI) /
 	{turn_on / line[LineIDs].turn_on,
 	turn_off / line[LineIDs].turn_off,
 	power_failure / line[LineIDs].power_failure,
