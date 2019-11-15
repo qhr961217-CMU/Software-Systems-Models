@@ -304,6 +304,11 @@ UNIT_LOCKED = (
 	dispense_main_med_flow -> UNIT_LOCKED
 ).
 
+
+//=====================
+// Composed Process
+//=====================
+
 ||PUMP = (line[LineIDs]:LINE || POWER_SYSTEM || {line[LineIDs]}::ALARM || UI) /
 	{turn_on / line[LineIDs].turn_on,
 	turn_off / line[LineIDs].turn_off,
@@ -373,9 +378,9 @@ assert RESUME_AFTER_FAILURE = [] forall[i:LineIDs] (
 )
 
 // 5. An alarm will sound on any line failure.
-// - Doesn't hold because 
+// - Doesn't hold because it can always be interruptted.
 assert ALARM_IF_LINE_FAILS = [] forall[i:LineIDs] (
-	LINE_FAILURE[i] -> ALARM_SOUND
+	LINE_FAILURE[i] -> X ALARM_SOUND
 )
 
 // 6. In the absence of errors the pump will continue to pump until the treatment is finished.
