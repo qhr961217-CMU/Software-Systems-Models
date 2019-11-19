@@ -66,13 +66,15 @@ SUB_POWER_SYSTEM[elec:ElecStateT][plug:PlugStateT][batt:BattStateT][power:PowerS
 	when (power == PowerOn)
 		turn_off -> SUB_POWER_SYSTEM[elec][plug][batt][PowerOff]
 	|
-	// The power is supplied by both
+	// The power is supplied by both, when unplug the pump, battery still stays the same
 	when (power == PowerOn && batt == BattWorking && elec == ElecWorking && plug == Plugged)
 		unplug -> SUB_POWER_SYSTEM[elec][Unplugged][batt][PowerOn]
 	|
+	// When electric failure occurs, the battery still stays the same
 	when (power == PowerOn && batt == BattWorking && elec == ElecWorking && plug == Plugged)
 		elec_failure -> SUB_POWER_SYSTEM[ElecBroken][plug][batt][PowerOn]
 	|
+	// When battery failure occurs, the electricity still stays the same
 	when (power == PowerOn && batt == BattWorking && elec == ElecWorking && plug == Plugged)
 		batt_failure -> SUB_POWER_SYSTEM[elec][plug][BattBroken][PowerOn]
 	|
@@ -144,31 +146,39 @@ LINE_OFF = (
 //   physical connections can be made and line can be locked
 //
 LINE_SETUP[params:ParamsStateT][state:LineStateT][lock:LineLockStateT] = (
+	// Line will be off when the pump is not working
 	power_failure -> LINE_OFF
 	|
 	turn_off -> LINE_OFF
 	|
+	// The line is broken, then fix the line
 	when (state == LineBroken)
 		fix_line -> LINE_SETUP[params][LineWorking][lock]
 	|
+	// The line could broken at any time
 	when (state == LineWorking)
 		line_break -> LINE_SETUP[params][LineBroken][lock]
 	|
+	// When parameters have not been set, user can choose the set the value
 	when (params == ParamsNotSet && state == LineWorking && lock == LineUnlocked)
 		set_rate -> enter_value ->
             (press_set -> LINE_SETUP[ParamsSet][state][lock]
              |
              press_cancel -> LINE_SETUP[ParamsNotSet][state][lock])
 	|
+	// The rate can be cleared after being set
 	when (params == ParamsSet && state == LineWorking && lock == LineUnlocked)
         clear_rate -> LINE_SETUP[ParamsNotSet][state][lock]
     |
+    // Connect and lock line to setup the line after setting the rate
     when (params == ParamsSet && state == LineWorking && lock == LineUnlocked)
         connect_line -> purge_air -> lock_line -> LINE_SETUP[params][state][LineLocked]
     |
+    // Confirm the settings to start infusion
     when (params == ParamsSet && state == LineWorking && lock == LineLocked)
         confirm_settings -> LINE_INFUSION[UnitUnlocked]
     |
+    // Unlock the line to set the value again
     when (params == ParamsSet && state == LineWorking && lock == LineLocked)
         erase_and_unlock_line -> LINE_SETUP[params][state][LineUnlocked]
 ),
@@ -180,25 +190,33 @@ LINE_SETUP[params:ParamsStateT][state:LineStateT][lock:LineLockStateT] = (
 // - Errors could occur with the line (e.g., line became pinched or plugged)
 //
 LINE_INFUSION[unitLock:UnitLockStateT] = (
+	// Power failure will shut down the infusion
 	power_failure -> LINE_OFF
 	|
+	// Infusion line can be turned off
 	when (unitLock == UnitUnlocked)
 		turn_off -> LINE_OFF
 	|
+	// If the line errors occur, the alarm will sound
 	line_break -> sound_alarm -> LINE_SETUP[ParamsSet][LineBroken][LineUnlocked]
 	|
+	// If the unit is not locked, it can change the setting
 	when (unitLock == UnitUnlocked)
         change_settings -> LINE_SETUP[ParamsSet][LineWorking][LineLocked]
     |
+    // Lock unit if it is unlocked
     when (unitLock == UnitUnlocked)
         lock_unit -> LINE_INFUSION[UnitLocked]
     |
+    // Unlock unit if it is locked
     when (unitLock == UnitLocked)
         unlock_unit -> LINE_INFUSION[UnitUnlocked]
 	|
+	// Nurse can choose to finish the treatment
 	when (unitLock == UnitLocked)
         finish_treatment -> LINE_INFUSION[UnitUnlocked]
     |
+    	// Nurse can choose to start dispensing the flow after locking the unit
 	when (unitLock == UnitLocked)
     	dispense_main_med_flow -> LINE_INFUSION[unitLock]
 ).
@@ -223,10 +241,12 @@ ALARM_POWER_OFF = (
 	turn_on -> SUB_ALARM[AlarmMuted][0]
 ),
 SUB_ALARM[alarmState:AlarmStateT][failedNum:FailedNumStateT] = (
+	// Power off would silince the alarm
 	power_failure -> ALARM_POWER_OFF
 	|
 	turn_off -> ALARM_POWER_OFF
 	|
+	//
 	when (alarmState == AlarmSounding)
 		alarm_sound -> SUB_ALARM[alarmState][failedNum]
 	|
@@ -245,6 +265,7 @@ SUB_ALARM[alarmState:AlarmStateT][failedNum:FailedNumStateT] = (
 
 //=====================
 // User Interface
+// - The actions that the user can choose to operate
 //=====================
 
 SUB_UI = UI_POWER_OFF,
