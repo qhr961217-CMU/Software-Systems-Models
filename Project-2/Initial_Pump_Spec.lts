@@ -246,16 +246,19 @@ SUB_ALARM[alarmState:AlarmStateT][failedNum:FailedNumStateT] = (
 	|
 	turn_off -> ALARM_POWER_OFF
 	|
-	//
+	// Action of alarm sounding
 	when (alarmState == AlarmSounding)
 		alarm_sound -> SUB_ALARM[alarmState][failedNum]
 	|
+	// Mute the alarm
 	when (alarmState == AlarmSounding)
 		mute_alarm -> SUB_ALARM[AlarmMuted][failedNum]
 	|
+	// If the line errors happen while the alarm already sounds, the number of broken lines plus
 	when (failedNum < MaxLineNum)
 		line_break -> SUB_ALARM[AlarmSounding][failedNum+1]
 	|
+	// Fix the last line will mute the alarm, otherwise only the count of broken lines minus
 	when (failedNum == 1)
 		fix_line -> alarm_stop -> SUB_ALARM[AlarmMuted][failedNum-1]
 	|
@@ -265,7 +268,7 @@ SUB_ALARM[alarmState:AlarmStateT][failedNum:FailedNumStateT] = (
 
 //=====================
 // User Interface
-// - The actions that the user can choose to operate
+// - The actions that the user can choose to operate with in the system
 //=====================
 
 SUB_UI = UI_POWER_OFF,
@@ -349,7 +352,7 @@ fluent PUMPING[i:LineIDs] = <line[i].dispense_main_med_flow,
 	{line[i].line_break, line[i].unlock_unit, turn_off, power_failure}>
 	initially False
 
-fluent ELEC_FAILURE = <unplug, plug_in>
+fluent ELEC_FAILURE = <{unplug, elec_failure}, plug_in>
 	initially True
 
 fluent BATT_FAILURE = <batt_failure, replace_batt>
