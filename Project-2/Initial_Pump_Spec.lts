@@ -344,38 +344,59 @@ UNIT_LOCKED = (
 const False = 0
 const True = 1
 
+// Settings will be confirmed after confirming the settings event until the settings 
+// are confirmed or power failure or when the system is turned off 
 fluent CONFIRM_SETTING[i:LineIDs] = <line[i].confirm_settings,
 	{line[i].change_settings, turn_off, power_failure}>
 	initially False
 
+// The system will be pumping after dispensing the flow until
+// a line break or until we unlock the unit or until we turn off the system or there 
+// is a power failure (battery and AC)
 fluent PUMPING[i:LineIDs] = <line[i].dispense_main_med_flow,
 	{line[i].line_break, line[i].unlock_unit, turn_off, power_failure}>
 	initially False
 
+// Electrical failure happens after the system is unplugged or until 
+// there is an electrical failure 
 fluent ELEC_FAILURE = <{unplug, elec_failure}, plug_in>
 	initially True
 
+// Battery failure is true after the battery fails until the battery is replaced
 fluent BATT_FAILURE = <batt_failure, replace_batt>
 	initially False
 
+// Power failure is true after power fails and either the battery is replaced or
+// electricity is plugged in
 fluent POWER_FAILURE = <power_failure, {replace_batt, plug_in}>
 	initially False
 
+// Line failure is true after a line break until the line is fixed
 fluent LINE_FAILURE[i:LineIDs] = <line[i].line_break, {line[i].fix_line}>
 	initially False
 
+// Alarm is sounding after alarm sounds until it is either stopped or muted or
+// if the system is turned off or there is a power failure
 fluent ALARM_SOUND = <alarm_sound, {alarm_stop, turn_off, power_failure, mute_alarm}>
 	initially False
 
+// Alarm is stopped after the alarm is stopped or after a power failure or 
+// after the system is turned off until the alarm sound is on again
 fluent ALARM_STOPPED = <{alarm_stop, power_failure, turn_off}, alarm_sound>
 	initially True
 
+// Alarm is muted after the alarm is muted until it sounds again on 
+// the system is turned off or there is a power failure
 fluent ALARM_MUTED = <mute_alarm, {alarm_stop, alarm_sound, turn_off, power_failure}>
 	initially True
 
+// Unit is locked after the unit is locked until the unit is unlocked
+// or a power failure or the system is turned off
 fluent UNIT_LOCKED[i:LineIDs] = <line[i].lock_unit, {line[i].unlock_unit, power_failure, turn_off}>
 	initially False
 
+// The treatment is finished after the finish_treatment event 
+// until the medicine is dispensed again
 fluent TREATMENT_FINISHED[i:LineIDs] = <line[i].finish_treatment,
 	{line[i].dispense_main_med_flow}>
 	initially False
