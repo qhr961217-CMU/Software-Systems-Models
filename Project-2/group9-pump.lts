@@ -1,3 +1,7 @@
+// Project # 2
+// Group # 9
+
+
 //
 // 17-651: FSP model of a simple infusion pump
 //
@@ -20,20 +24,20 @@ const MaxLineNum = 2
 range LineIDs = 1 .. MaxLineNum
 
 menu UserControlMenu = {
-	// POWER_SYSTEM UI
-	turn_on,  turn_off,
-	
-	// PUMP UI
-	line[i:LineIDs].set_rate, line[i:LineIDs].clear_rate, line[i:LineIDs].change_settings,
-	line[i:LineIDs].confirm_settings, line[i:LineIDs].dispense_main_med_flow,
-	line[i:LineIDs].enter_value, line[i:LineIDs].erase_and_unlock_line,
-	line[i:LineIDs].lock_unit, line[i:LineIDs].press_cancel, 
+  // POWER_SYSTEM UI
+  turn_on,  turn_off,
+  
+  // PUMP UI
+  line[i:LineIDs].set_rate, line[i:LineIDs].clear_rate, line[i:LineIDs].change_settings,
+  line[i:LineIDs].confirm_settings, line[i:LineIDs].dispense_main_med_flow,
+  line[i:LineIDs].enter_value, line[i:LineIDs].erase_and_unlock_line,
+  line[i:LineIDs].lock_unit, line[i:LineIDs].press_cancel, 
     line[i:LineIDs].press_set, line[i:LineIDs].unlock_unit,
-	line[i:LineIDs].mute_alarm, line[i:LineIDs].connect_line, line[i:LineIDs].finish_treatment,
+  line[i:LineIDs].mute_alarm, line[i:LineIDs].connect_line, line[i:LineIDs].finish_treatment,
 
-	// Physical Actions
-	plug_in, unplug, replace_batt, restore_elec, // POWER_SYSTEM
-	line[i:LineIDs].fix_line // PUMP
+  // Physical Actions
+  plug_in, unplug, replace_batt, restore_elec, // POWER_SYSTEM
+  line[i:LineIDs].fix_line // PUMP
 }
 
 //=====================
@@ -58,51 +62,51 @@ range PowerStateT = PowerOff .. PowerOn
 
 POWER_SYSTEM = SUB_POWER_SYSTEM[ElecWorking][Unplugged][BattWorking][PowerOff],
 SUB_POWER_SYSTEM[elec:ElecStateT][plug:PlugStateT][batt:BattStateT][power:PowerStateT] = (
-	// The power system is able to be turned on
-	when (power == PowerOff && (batt == BattWorking || (elec == ElecWorking && plug == Plugged)))
-		turn_on -> SUB_POWER_SYSTEM[elec][plug][batt][PowerOn]
-	|
-	// The power system is already working - supplied by either sources
-	when (power == PowerOn)
-		turn_off -> SUB_POWER_SYSTEM[elec][plug][batt][PowerOff]
-	|
-	// The power is supplied by both, when unplug the pump, battery still stays the same
-	when (power == PowerOn && batt == BattWorking && elec == ElecWorking && plug == Plugged)
-		unplug -> SUB_POWER_SYSTEM[elec][Unplugged][batt][PowerOn]
-	|
-	// When electric failure occurs, the battery still stays the same
-	when (power == PowerOn && batt == BattWorking && elec == ElecWorking && plug == Plugged)
-		elec_failure -> SUB_POWER_SYSTEM[ElecBroken][plug][batt][PowerOn]
-	|
-	// When battery failure occurs, the electricity still stays the same
-	when (power == PowerOn && batt == BattWorking && elec == ElecWorking && plug == Plugged)
-		batt_failure -> SUB_POWER_SYSTEM[elec][plug][BattBroken][PowerOn]
-	|
-	// The power is supplied solely by electricity
-	when (power == PowerOn && batt == BattBroken && elec == ElecWorking && plug == Plugged)
-		unplug -> power_failure -> SUB_POWER_SYSTEM[elec][Unplugged][batt][PowerOff]
-	|
-	when (power == PowerOn && batt == BattBroken && elec == ElecWorking && plug == Plugged)
-		power_failure -> SUB_POWER_SYSTEM[ElecBroken][plug][batt][PowerOff]
-	|
-	// The power is supplied solely by the battery
-	when (power == PowerOn && batt == BattWorking && (elec == ElecBroken || plug == Unplugged))
-		power_failure -> SUB_POWER_SYSTEM[elec][plug][BattBroken][PowerOff]
-	|
-	// The battery is not working properly
-	when (batt == BattBroken)
-		// Replace the battery
-		replace_batt -> SUB_POWER_SYSTEM[elec][plug][BattWorking][power]
-	|
-	// The cord is unplugged
-	when (plug == Unplugged)
-		// Plug in the cord
-		plug_in -> SUB_POWER_SYSTEM[elec][Plugged][batt][power]
-	|
-	// The external electricity is broken
-	when (elec == ElecBroken)
-		// Restore the external electricity
-		restore_elec -> SUB_POWER_SYSTEM[ElecWorking][plug][batt][power]
+  // The power system is able to be turned on
+  when (power == PowerOff && (batt == BattWorking || (elec == ElecWorking && plug == Plugged)))
+    turn_on -> SUB_POWER_SYSTEM[elec][plug][batt][PowerOn]
+  |
+  // The power system is already working - supplied by either sources
+  when (power == PowerOn)
+    turn_off -> SUB_POWER_SYSTEM[elec][plug][batt][PowerOff]
+  |
+  // The power is supplied by both, when unplug the pump, battery still stays the same
+  when (power == PowerOn && batt == BattWorking && elec == ElecWorking && plug == Plugged)
+    unplug -> SUB_POWER_SYSTEM[elec][Unplugged][batt][PowerOn]
+  |
+  // When electric failure occurs, the battery still stays the same
+  when (power == PowerOn && batt == BattWorking && elec == ElecWorking && plug == Plugged)
+    elec_failure -> SUB_POWER_SYSTEM[ElecBroken][plug][batt][PowerOn]
+  |
+  // When battery failure occurs, the electricity still stays the same
+  when (power == PowerOn && batt == BattWorking && elec == ElecWorking && plug == Plugged)
+    batt_failure -> SUB_POWER_SYSTEM[elec][plug][BattBroken][PowerOn]
+  |
+  // The power is supplied solely by electricity
+  when (power == PowerOn && batt == BattBroken && elec == ElecWorking && plug == Plugged)
+    unplug -> power_failure -> SUB_POWER_SYSTEM[elec][Unplugged][batt][PowerOff]
+  |
+  when (power == PowerOn && batt == BattBroken && elec == ElecWorking && plug == Plugged)
+    power_failure -> SUB_POWER_SYSTEM[ElecBroken][plug][batt][PowerOff]
+  |
+  // The power is supplied solely by the battery
+  when (power == PowerOn && batt == BattWorking && (elec == ElecBroken || plug == Unplugged))
+    power_failure -> SUB_POWER_SYSTEM[elec][plug][BattBroken][PowerOff]
+  |
+  // The battery is not working properly
+  when (batt == BattBroken)
+    // Replace the battery
+    replace_batt -> SUB_POWER_SYSTEM[elec][plug][BattWorking][power]
+  |
+  // The cord is unplugged
+  when (plug == Unplugged)
+    // Plug in the cord
+    plug_in -> SUB_POWER_SYSTEM[elec][Plugged][batt][power]
+  |
+  // The external electricity is broken
+  when (elec == ElecBroken)
+    // Restore the external electricity
+    restore_elec -> SUB_POWER_SYSTEM[ElecWorking][plug][batt][power]
 ).
 
 //=====================
@@ -137,7 +141,7 @@ range UnitLockStateT = UnitUnlocked .. UnitLocked
 
 LINE = LINE_OFF,
 LINE_OFF = (
-	turn_on -> LINE_SETUP[ParamsNotSet][LineWorking][LineUnlocked]
+  turn_on -> LINE_SETUP[ParamsNotSet][LineWorking][LineUnlocked]
 ),
 
 //
@@ -146,28 +150,28 @@ LINE_OFF = (
 //   physical connections can be made and line can be locked
 //
 LINE_SETUP[params:ParamsStateT][state:LineStateT][lock:LineLockStateT] = (
-	// Line will be off when the pump is not working
-	power_failure -> LINE_OFF
-	|
-	turn_off -> LINE_OFF
-	|
-	// The line is broken, then fix the line
-	when (state == LineBroken)
-		fix_line -> LINE_SETUP[params][LineWorking][lock]
-	|
-	// The line could broken at any time
-	when (state == LineWorking)
-		line_break -> LINE_SETUP[params][LineBroken][lock]
-	|
-	// When parameters have not been set, user can choose the set the value
-	when (params == ParamsNotSet && state == LineWorking && lock == LineUnlocked)
-		set_rate -> enter_value ->
+  // Line will be off when the pump is not working
+  power_failure -> LINE_OFF
+  |
+  turn_off -> LINE_OFF
+  |
+  // The line is broken, then fix the line
+  when (state == LineBroken)
+    fix_line -> LINE_SETUP[params][LineWorking][lock]
+  |
+  // The line could broken at any time
+  when (state == LineWorking)
+    line_break -> LINE_SETUP[params][LineBroken][lock]
+  |
+  // When parameters have not been set, user can choose the set the value
+  when (params == ParamsNotSet && state == LineWorking && lock == LineUnlocked)
+    set_rate -> enter_value ->
             (press_set -> LINE_SETUP[ParamsSet][state][lock]
              |
              press_cancel -> LINE_SETUP[ParamsNotSet][state][lock])
-	|
-	// The rate can be cleared after being set
-	when (params == ParamsSet && state == LineWorking && lock == LineUnlocked)
+  |
+  // The rate can be cleared after being set
+  when (params == ParamsSet && state == LineWorking && lock == LineUnlocked)
         clear_rate -> LINE_SETUP[ParamsNotSet][state][lock]
     |
     // Connect and lock line to setup the line after setting the rate
@@ -190,18 +194,18 @@ LINE_SETUP[params:ParamsStateT][state:LineStateT][lock:LineLockStateT] = (
 // - Errors could occur with the line (e.g., line became pinched or plugged)
 //
 LINE_INFUSION[unitLock:UnitLockStateT] = (
-	// Power failure will shut down the infusion
-	power_failure -> LINE_OFF
-	|
-	// Infusion line can be turned off
-	when (unitLock == UnitUnlocked)
-		turn_off -> LINE_OFF
-	|
-	// If the line errors occur, the alarm will sound
-	line_break -> sound_alarm -> LINE_SETUP[ParamsSet][LineBroken][LineUnlocked]
-	|
-	// If the unit is not locked, it can change the setting
-	when (unitLock == UnitUnlocked)
+  // Power failure will shut down the infusion
+  power_failure -> LINE_OFF
+  |
+  // Infusion line can be turned off
+  when (unitLock == UnitUnlocked)
+    turn_off -> LINE_OFF
+  |
+  // If the line errors occur, the alarm will sound
+  line_break -> sound_alarm -> LINE_SETUP[ParamsSet][LineBroken][LineUnlocked]
+  |
+  // If the unit is not locked, it can change the setting
+  when (unitLock == UnitUnlocked)
         change_settings -> LINE_SETUP[ParamsSet][LineWorking][LineLocked]
     |
     // Lock unit if it is unlocked
@@ -211,14 +215,14 @@ LINE_INFUSION[unitLock:UnitLockStateT] = (
     // Unlock unit if it is locked
     when (unitLock == UnitLocked)
         unlock_unit -> LINE_INFUSION[UnitUnlocked]
-	|
-	// Nurse can choose to finish the treatment
-	when (unitLock == UnitLocked)
+  |
+  // Nurse can choose to finish the treatment
+  when (unitLock == UnitLocked)
         finish_treatment -> LINE_INFUSION[UnitUnlocked]
     |
-    	// Nurse can choose to start dispensing the flow after locking the unit
-	when (unitLock == UnitLocked)
-    	dispense_main_med_flow -> LINE_INFUSION[unitLock]
+      // Nurse can choose to start dispensing the flow after locking the unit
+  when (unitLock == UnitLocked)
+      dispense_main_med_flow -> LINE_INFUSION[unitLock]
 ).
 
 
@@ -238,32 +242,33 @@ range FailedNumStateT = 0 .. MaxLineNum
 // Nurses can silence the alarm even though the problem is not solved
 ALARM = ALARM_POWER_OFF,
 ALARM_POWER_OFF = (
-	turn_on -> SUB_ALARM[AlarmMuted][0]
+  turn_on -> SUB_ALARM[AlarmMuted][0]
 ),
 SUB_ALARM[alarmState:AlarmStateT][failedNum:FailedNumStateT] = (
-	// Power off would silince the alarm
-	power_failure -> ALARM_POWER_OFF
-	|
-	turn_off -> ALARM_POWER_OFF
-	|
-	// Action of alarm sounding
-	when (alarmState == AlarmSounding)
-		alarm_sound -> SUB_ALARM[alarmState][failedNum]
-	|
-	// Mute the alarm
-	when (alarmState == AlarmSounding)
-		mute_alarm -> SUB_ALARM[AlarmMuted][failedNum]
-	|
-	// If the line errors happen while the alarm already sounds, the number of broken lines plus
-	when (failedNum < MaxLineNum)
-		line_break -> SUB_ALARM[AlarmSounding][failedNum+1]
-	|
-	// Fix the last line will mute the alarm, otherwise only the count of broken lines minus
-	when (failedNum == 1)
-		fix_line -> alarm_stop -> SUB_ALARM[AlarmMuted][failedNum-1]
-	|
-	when (failedNum > 1)
-		fix_line -> SUB_ALARM[alarmState][failedNum-1]
+  // Power off would silince the alarm
+  power_failure -> ALARM_POWER_OFF
+  |
+  turn_off -> ALARM_POWER_OFF
+  |
+  // Action of alarm sounding
+  when (alarmState == AlarmSounding)
+    alarm_sound -> SUB_ALARM[alarmState][failedNum]
+  |
+  // Mute the alarm
+  when (alarmState == AlarmSounding)
+    mute_alarm -> SUB_ALARM[AlarmMuted][failedNum]
+  |
+  // If the line errors happen while the alarm already sounds, the
+  // number of broken lines plus
+  when (failedNum < MaxLineNum)
+    line_break -> SUB_ALARM[AlarmSounding][failedNum+1]
+  |
+  // Fix the last line will mute the alarm, otherwise only the count of broken lines minus
+  when (failedNum == 1)
+    fix_line -> alarm_stop -> SUB_ALARM[AlarmMuted][failedNum-1]
+  |
+  when (failedNum > 1)
+    fix_line -> SUB_ALARM[alarmState][failedNum-1]
 ).
 
 //=====================
@@ -273,69 +278,70 @@ SUB_ALARM[alarmState:AlarmStateT][failedNum:FailedNumStateT] = (
 
 SUB_UI = UI_POWER_OFF,
 UI_POWER_OFF = (
-	turn_on -> UI_INIT
+  turn_on -> UI_INIT
 ),
 UI_INIT = (
-	turn_off -> UI_POWER_OFF
-	|
-	power_failure -> UI_POWER_OFF
-	|
-	set_rate -> enter_value -> VALUE_ENTERED
+  turn_off -> UI_POWER_OFF
+  |
+  power_failure -> UI_POWER_OFF
+  |
+  set_rate -> enter_value -> VALUE_ENTERED
 ),
 VALUE_ENTERED = (
-	turn_off -> UI_POWER_OFF
-	|
-	power_failure -> UI_POWER_OFF
-	|
-	press_cancel -> UI_INIT
-	|
-	press_set -> VALUE_SET
+  turn_off -> UI_POWER_OFF
+  |
+  power_failure -> UI_POWER_OFF
+  |
+  press_cancel -> UI_INIT
+  |
+  press_set -> VALUE_SET
 ),
 VALUE_SET = (
-	turn_off -> UI_POWER_OFF
-	|
-	power_failure -> UI_POWER_OFF
-	|
-	clear_rate -> UI_INIT
-	|
-	connect_line -> LINE_CONNECTED
+  turn_off -> UI_POWER_OFF
+  |
+  power_failure -> UI_POWER_OFF
+  |
+  clear_rate -> UI_INIT
+  |
+  connect_line -> LINE_CONNECTED
 ),
 LINE_CONNECTED = (
-	turn_off -> UI_POWER_OFF
-	|
-	power_failure -> UI_POWER_OFF
-	|
-	confirm_settings -> SETTING_CONFIRMED
-	|
-	erase_and_unlock_line -> VALUE_SET
+  turn_off -> UI_POWER_OFF
+  |
+  power_failure -> UI_POWER_OFF
+  |
+  confirm_settings -> SETTING_CONFIRMED
+  |
+  erase_and_unlock_line -> VALUE_SET
 ),
 SETTING_CONFIRMED = (
-	turn_off -> UI_POWER_OFF
-	|
-	power_failure -> UI_POWER_OFF
-	|
-	change_settings -> LINE_CONNECTED
-	|
-	lock_unit -> UNIT_LOCKED
+  turn_off -> UI_POWER_OFF
+  |
+  power_failure -> UI_POWER_OFF
+  |
+  change_settings -> LINE_CONNECTED
+  |
+  lock_unit -> UNIT_LOCKED
 ),
 UNIT_LOCKED = (
-	power_failure -> UI_POWER_OFF
-	|
-	unlock_unit -> SETTING_CONFIRMED
-	|
-	dispense_main_med_flow -> UNIT_LOCKED
+  power_failure -> UI_POWER_OFF
+  |
+  unlock_unit -> SETTING_CONFIRMED
+  |
+  dispense_main_med_flow -> UNIT_LOCKED
 ).
 
 //=====================
 // Composed Process
 //=====================
 
-||PUMP = (line[LineIDs]:LINE || POWER_SYSTEM || {line[LineIDs]}::ALARM || line[LineIDs]:SUB_UI) /
-	{turn_on / line[LineIDs].turn_on,
-	turn_off / line[LineIDs].turn_off,
-	power_failure / line[LineIDs].power_failure,
-	mute_alarm / line[LineIDs].mute_alarm,
-	alarm_sound / line[LineIDs].alarm_sound}.
+||PUMP = (line[LineIDs]:LINE || POWER_SYSTEM || {line[LineIDs]}::ALARM
+  || line[LineIDs]:SUB_UI) /
+  {turn_on / line[LineIDs].turn_on,
+  turn_off / line[LineIDs].turn_off,
+  power_failure / line[LineIDs].power_failure,
+  mute_alarm / line[LineIDs].mute_alarm,
+  alarm_sound / line[LineIDs].alarm_sound}.
 
 //=====================
 // Properties
@@ -347,98 +353,103 @@ const True = 1
 // Settings will be confirmed after confirming the settings event until the settings 
 // are confirmed or power failure or when the system is turned off 
 fluent CONFIRM_SETTING[i:LineIDs] = <line[i].confirm_settings,
-	{line[i].change_settings, turn_off, power_failure}>
-	initially False
+  {line[i].change_settings, turn_off, power_failure}>
+  initially False
 
 // The system will be pumping after dispensing the flow until
 // a line break or until we unlock the unit or until we turn off the system or there 
 // is a power failure (battery and AC)
 fluent PUMPING[i:LineIDs] = <line[i].dispense_main_med_flow,
-	{line[i].line_break, line[i].unlock_unit, turn_off, power_failure}>
-	initially False
+  {line[i].line_break, line[i].unlock_unit, turn_off, power_failure}>
+  initially False
 
 // Electrical failure happens after the system is unplugged or until 
 // there is an electrical failure 
 fluent ELEC_FAILURE = <{unplug, elec_failure}, plug_in>
-	initially True
+  initially True
 
 // Battery failure is true after the battery fails until the battery is replaced
 fluent BATT_FAILURE = <batt_failure, replace_batt>
-	initially False
+  initially False
 
 // Power failure is true after power fails and either the battery is replaced or
 // electricity is plugged in
 fluent POWER_FAILURE = <power_failure, {replace_batt, plug_in}>
-	initially False
+  initially False
 
 // Line failure is true after a line break until the line is fixed
 fluent LINE_FAILURE[i:LineIDs] = <line[i].line_break, {line[i].fix_line}>
-	initially False
+  initially False
 
 // Alarm is sounding after alarm sounds until it is either stopped or muted or
 // if the system is turned off or there is a power failure
 fluent ALARM_SOUND = <alarm_sound, {alarm_stop, turn_off, power_failure, mute_alarm}>
-	initially False
+  initially False
 
 // Alarm is stopped after the alarm is stopped or after a power failure or 
 // after the system is turned off until the alarm sound is on again
 fluent ALARM_STOPPED = <{alarm_stop, power_failure, turn_off}, alarm_sound>
-	initially True
+  initially True
 
 // Alarm is muted after the alarm is muted until it sounds again on 
 // the system is turned off or there is a power failure
 fluent ALARM_MUTED = <mute_alarm, {alarm_stop, alarm_sound, turn_off, power_failure}>
-	initially True
+  initially True
 
 // Unit is locked after the unit is locked until the unit is unlocked
 // or a power failure or the system is turned off
-fluent UNIT_LOCKED[i:LineIDs] = <line[i].lock_unit, {line[i].unlock_unit, power_failure, turn_off}>
-	initially False
+fluent UNIT_LOCKED[i:LineIDs] = <line[i].lock_unit, {line[i].unlock_unit,
+  power_failure, turn_off}>
+  initially False
 
 // The treatment is finished after the finish_treatment event 
 // until the medicine is dispensed again
 fluent TREATMENT_FINISHED[i:LineIDs] = <line[i].finish_treatment,
-	{line[i].dispense_main_med_flow}>
-	initially False
+  {line[i].dispense_main_med_flow}>
+  initially False
 
-// 1. The pump cannot start pumping without the operator first confirming the settings on the pump.
+// 1. The pump cannot start pumping without the operator first confirming the
+// settings on the pump.
 assert CONFIRM_BEFORE_PUMP = [] forall[i:LineIDs] (
-	PUMPING[i] -> CONFIRM_SETTING[i]
+  PUMPING[i] -> CONFIRM_SETTING[i]
 )
 
 // 2. Electrical power can fail infinitely often.
 assert ELEC_FAILS_INFINITELY = []<> ELEC_FAILURE
 
 // 3. If the backup battery power fails, pumping will not occur on any line.
-// - Doesn't hold because even battery fails, it's possible that the machine is powered by AC power
-assert BATT_FAILS_THEN_STOP_PUMPING = [] (BATT_FAILURE -> forall[i:LineIDs] (!PUMPING[i]))
+// - Doesn't hold because even battery fails, it's possible that the machine
+// is powered by AC power
+assert BATT_FAILS_THEN_STOP_PUMPING = [] (BATT_FAILURE -> forall[i:LineIDs]
+  (!PUMPING[i]))
 
 // 4. It is always possible to resume pumping after a failure.
 // (for each line.)
 assert RESUME_AFTER_FAILURE = [] forall[i:LineIDs] (
-	(POWER_FAILURE || LINE_FAILURE[i]) -> <> PUMPING[i]
+  (POWER_FAILURE || LINE_FAILURE[i]) -> <> PUMPING[i]
 )
 
 // 5. An alarm will sound on any line failure.
 // - Doesn't hold because it can always be interruptted.
 assert ALARM_IF_LINE_FAILS = [] forall[i:LineIDs] (
-	LINE_FAILURE[i] -> X ALARM_SOUND
+  LINE_FAILURE[i] -> X ALARM_SOUND
 )
 
 // 6. In the absence of errors the pump will continue to pump until the treatment is finished.
 assert CONTINUE_PUMPING_IF_NO_ERROR = [] forall[i:LineIDs] (
-	PUMPING[i] -> (
-		(!(POWER_FAILURE || LINE_FAILURE[i]) && UNIT_LOCKED[i] U TREATMENT_FINISHED[i])
-			-> (PUMPING[i] U TREATMENT_FINISHED[i])
-	)
+  PUMPING[i] -> (
+    (!(POWER_FAILURE || LINE_FAILURE[i]) && UNIT_LOCKED[i] U TREATMENT_FINISHED[i])
+      -> (PUMPING[i] U TREATMENT_FINISHED[i])
+  )
 )
 
 // 7. The system never deadlocks. (Tested automatically.)
 
 // 8. Alarm sound infinitely often until muted or stopped.
-assert ALARM_SOUND_INFINITELY_OFTEN_UNTIL_DEALT = ([](!ALARM_STOPPED && !ALARM_MUTED) -> []<>ALARM_SOUND)
+assert ALARM_SOUND_INFINITELY_OFTEN_UNTIL_DEALT = ([](!ALARM_STOPPED && !ALARM_MUTED)
+  -> []<>ALARM_SOUND)
 
 // 9. Eventually the treatment would be finished.
 assert TREATMENT_FINISH_EVENTUALLY = forall[i:LineIDs] (
-	<> TREATMENT_FINISHED[i]
+  <> TREATMENT_FINISHED[i]
 )
