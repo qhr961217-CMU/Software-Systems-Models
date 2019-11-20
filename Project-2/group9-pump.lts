@@ -445,7 +445,7 @@ assert CONTINUE_PUMPING_IF_NO_ERROR = [] forall[i:LineIDs] (
 
 // 7. The system never deadlocks. (Tested automatically.)
 
-// 8. Alarm sound infinitely often until muted or stopped.
+// 8.  Once activated, alarm sounds infinitely often until muted or stopped
 assert ALARM_SOUND_INFINITELY_OFTEN_UNTIL_DEALT = ([](!ALARM_STOPPED && !ALARM_MUTED)
   -> []<>ALARM_SOUND)
 
